@@ -3,13 +3,49 @@ import decimal
 class ComplexDecimal(object):
     "A class for handling complex values with Python's decimal module."
 
-    def __init__(self, real=0, imag=None):
-        if type(real) in (complex, type(self)):
+    def __init__(self, real=0, imag=0):
+        if type(real) in (str, ):
+            real = real.replace('(', '').replace(')', '')
+            # 9 ways:
+            #       imag
+            #      +imag
+            #      -imag
+            #  real+imag
+            #  real-imag
+            # +real+imag
+            # +real-imag
+            # -real+imag
+            # -real-imag
+            if 'j' in real:  # imag value
+                plus, minus = real.count('+'), real.count('-')
+                if plus == 1 and minus == 1:
+                    if not real.index('+'):               # +real-imag
+                        real, imag = real.rsplit('-', 1); imag = '-' + imag
+                    else:                                 # -real+imag
+                        real, imag = real.rsplit('+', 1)
+                elif plus == 1 and not real.index('+'):   # +imag
+                    real, imag = 0, real
+                elif minus == 1 and not real.index('-'):  # -imag
+                    real, imag = 0, real
+                elif plus == 1 and real.index('+'):       #  real+imag
+                    real, imag = real.rsplit('+', 1)
+                elif minus == 1 and real.index('-'):      #  real-imag
+                    real, imag = real.rsplit('-', 1); imag = '-' + imag
+                elif plus == 2:                           # +real+imag
+                    real, imag = real.rsplit('+', 1)
+                elif minus == 2:                          # -real-imag
+                    real, imag = real.rsplit('-', 1)
+                else:                                     #       imag
+                    real, imag = 0, real
+                self.real = decimal.Decimal(real)
+                self.imag = decimal.Decimal(imag.replace('j', ''))
+            else:  # real value
+                self.real = decimal.Decimal(real)
+                self.imag = decimal.Decimal(0)
+                
+        elif type(real) in (complex, type(self)):
             self.real = decimal.Decimal(real.real)
             self.imag = decimal.Decimal(real.imag)
-        elif imag is None:
-            self.real = decimal.Decimal(real)
-            self.imag = decimal.Decimal(0)
         else:
             self.real = decimal.Decimal(real)
             self.imag = decimal.Decimal(imag)
