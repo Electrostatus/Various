@@ -1,16 +1,22 @@
 \documentclass[12pt]{article}
 \usepackage{longtable, booktabs}
-\usepackage{geometry, wasysym}
+\usepackage{geometry, wasysym}  % wasysym for checkbox
+\usepackage{graphicx}  % for moons
 
 \newgeometry{left=0.55in, right=0.55in, top=1.0in, bottom=1.0in} 
 
-
 \begin{document}
-\begin{center}
-\begin{longtable}[c]{cccr}
 
-Watched&\begin{tabular}{@{}c@{}}Season/\\Episode\end{tabular}&Film&Air Date\\
-\hline
+
+\begin{center}  % header
+\raisebox{-.5\height}{\includegraphics[height=1.25in]{mst3k_moon_old.png}} \hspace*{0.5in} \begin{tabular}{@{}c@{}}{\Large Mystery Science Theater 3000}\\{\Large Episode Watch List}\end{tabular} \hspace*{0.5in} \raisebox{-.5\height}{\includegraphics[height=1.25in]{mst3k_moon_new.png}}
+%{\Large Mystery Science Theater 3000\\Episode Watch List}
+\end{center}
+
+\begin{center}\begin{longtable}[c]{cccr}  % define table
+Watched&\begin{tabular}{@{}c@{}}Season/\\Episode\end{tabular}&Film&Air Date\\\hline  % column headers and seperating line
+
+% SEASON 0 - 1988
 $\Box$&Pilot&The Green Slime&Unaired\\
 $\Box$&K01&Invaders from the Deep&November 24, 1988\\
 $\Box$&K02&Revenge of the Mysterons from Mars&November 24, 1988\\
@@ -33,7 +39,8 @@ $\Box$&K18&The Million Eyes of Sumuru&May  7, 1989\\
 $\Box$&K19&Hangar 18&May 14, 1989\\
 $\Box$&K20&The Last Chase&May 21, 1989\\
 $\Box$&K21&The ``Legend of Dinosaurs"&May 28, 1989\\
-\\
+
+\\  % SEASON 1 - 1989
 $\Box$&101&The Crawling Eye&November 18, 1989\\
 $\Box$&102&The Robot vs. The Aztec Mummy&November 25, 1989\\
 $\Box$&103&The Mad Monster&December  2, 1989\\
@@ -47,7 +54,8 @@ $\Box$&110&Robot Holocaust&January 13, 1990\\
 $\Box$&111&Moon Zero Two&January 20, 1990\\
 $\Box$&112&Untamed Youth&January 27, 1990\\
 $\Box$&113&The Black Scorpion&February  3, 1990\\
-\\
+
+\\  % SEASON 2 - 1990
 $\Box$&201&Rocketship X-M&September 22, 1990\\
 $\Box$&202&The Sidehackers&September 29, 1990\\
 $\Box$&203&Jungle Goddess&October  6, 1990\\
@@ -61,7 +69,8 @@ $\Box$&210&King Dinosaur&December 22, 1990\\
 $\Box$&211&First Spaceship on Venus&December 29, 1990\\
 $\Box$&212&Godzilla vs. Megalon&January 19, 1991\\
 $\Box$&213&Godzilla vs. the Sea Monster&February  2, 1991\\
-\\
+
+\\  % SEASON 3 - 1991
 $\Box$&301&Cave Dwellers&June  1, 1991\\
 $\Box$&302&Gamera&June  8, 1991\\
 $\Box$&303&Pod People&June 15, 1991\\
@@ -86,7 +95,8 @@ $\Box$&321&Santa Claus Conquers the Martians&December 21, 1991\\
 $\Box$&322&Master Ninja I&January 11, 1992\\
 $\Box$&323&The Castle of Fu Manchu&January 18, 1992\\
 $\Box$&324&Master Ninja II&January 25, 1992\\
-\\
+
+\\  % SEASON 4 - 1992
 $\Box$&401&Space Travelers&June  6, 1992\\
 $\Box$&402&The Giant Gila Monster&June 13, 1992\\
 $\Box$&403&City Limits&June 20, 1992\\
@@ -104,14 +114,15 @@ $\Box$&414&Tormented&September 26, 1992\\
 $\Box$&415&The Beatniks&November 25, 1992\\
 $\Box$&416&Fire Maidens of Outer Space&November 26, 1992\\
 $\Box$&417&Crash of Moons&November 28, 1992\\
-$\Box$&418&Attack of the The Eye Creatures&December  5, 1992\\
+$\Box$&418&Attack of the the Eye Creatures&December  5, 1992\\
 $\Box$&419&The Rebel Set&December 12, 1992\\
 $\Box$&420&The Human Duplicators&December 26, 1992\\
 $\Box$&421&Monster a Go-Go&January  9, 1993\\
 $\Box$&422&The Day the Earth Froze&January 16, 1993\\
 $\Box$&423&Bride of the Monster&January 23, 1993\\
 $\Box$&424&Manos: The Hands of Fate&January 30, 1993\\
-\\
+
+\\  % SEASON 5 - 1993
 $\Box$&501&Warrior of the Lost World&July 24, 1993\\
 $\Box$&502&Hercules&July 17, 1993\\
 $\Box$&503&Swamp Diamonds&July 31, 1993\\
@@ -136,7 +147,8 @@ $\Box$&521&Santa Claus&December 24, 1993\\
 $\Box$&522&Teen-Age Crime Wave&January 15, 1994\\
 $\Box$&523&Village of the Giants&January 22, 1994\\
 $\Box$&524&12 to the Moon&February  5, 1994\\
-\\
+
+\\  % SEASON 6 - 1994
 $\Box$&601&Girls Town&July 16, 1994\\
 $\Box$&602&Invasion U.S.A.&July 23, 1994\\
 $\Box$&603&The Dead Talk Back&July 30, 1994\\
@@ -161,16 +173,19 @@ $\Box$&621&The Beast of Yucca Flats&January 21, 1995\\
 $\Box$&622&Angels Revenge&March 11, 1995\\
 $\Box$&623&The Amazing Transparent Man&March 18, 1995\\
 $\Box$&624&Samson vs. the Vampire Women&March 25, 1995\\
-\\
+
+\\  % SEASON 7 - 1995
 $\Box$&701&Night of the Blood Beast&November 23, 1995\\
 $\Box$&702&The Brute Man&February 10, 1996\\
 $\Box$&703&Deathstalker and the Warriors from Hell&February 17, 1996\\
 $\Box$&704&The Incredible Melting Man&February 24, 1996\\
 $\Box$&705&Escape 2000&March  2, 1996\\
 $\Box$&706&Laserblast&May 18, 1996\\
-\\
+
+\\  % MOVIE - 1996
 $\Box$&&Mystery Science Theater 3000: The Movie&April 19, 1996\\
-\\
+
+\\  % SEASON 8 - 1997
 $\Box$&801&Revenge of the Creature&February  1, 1997\\
 $\Box$&802&The Leech Woman&February  8, 1997\\
 $\Box$&803&The Mole People&February 15, 1997\\
@@ -182,7 +197,6 @@ $\Box$&808&The She Creature&April  5, 1997\\
 $\Box$&809&I Was a Teenage Werewolf&April 19, 1997\\
 $\Box$&810&The Giant Spider Invasion&May 31, 1997\\
 $\Box$&811&Parts: The Clonus Horror&June  7, 1997\\
-
 $\Box$&812&\begin{tabular}{@{}c@{}}The Incredibly Strange Creatures Who\\Stopped Living and Became Mixed-Up Zombies\end{tabular}&June 14, 1997\\
 $\Box$&813&Jack Frost&July 12, 1997\\
 $\Box$&814&Riding with Death&July 19, 1997\\
@@ -194,7 +208,8 @@ $\Box$&819&Invasion of the Neptune Men&October 11, 1997\\
 $\Box$&820&Space Mutiny&November  8, 1997\\
 $\Box$&821&Time Chasers&November 22, 1997\\
 $\Box$&822&Overdrawn at the Memory Bank&December  6, 1997\\
-\\
+
+\\  % SEASON 9 - 1998
 $\Box$&901&The Projected Man&March 14, 1998\\
 $\Box$&902&The Phantom Planet&March 21, 1998\\
 $\Box$&903&The Pumaman&April  4, 1998\\
@@ -208,7 +223,8 @@ $\Box$&910&The Final Sacrifice&July 25, 1998\\
 $\Box$&911&Devil Fish&August 15, 1998\\
 $\Box$&912&The Screaming Skull&August 29, 1998\\
 $\Box$&913&Quest of the Delta Knights&September 26, 1998\\
-\\
+
+\\  % SEASON 10 - 1999
 $\Box$&1001&Soultaker&April 11, 1999\\
 $\Box$&1002&Girl in Gold Boots&April 18, 1999\\
 $\Box$&1003&Merlin's Shop of Mystical Wonders&September 12, 1999\\
@@ -222,7 +238,8 @@ $\Box$&1010&It Lives By Night&July 18, 1999\\
 $\Box$&1011&Horrors of Spider Island&July 25, 1999\\
 $\Box$&1012&Squirm&August  1, 1999\\
 $\Box$&1013&Diabolik&August  8, 1999\\
-\\
+
+\\  % SEASON 11 - 2017
 $\Box$&1101&Reptilicus&April 14, 2017\\
 $\Box$&1102&Cry Wilderness&April 14, 2017\\
 $\Box$&1103&The Time Travelers&April 14, 2017\\
@@ -238,6 +255,13 @@ $\Box$&1112&Carnival Magic&April 14, 2017\\
 $\Box$&1113&The Christmas that Almost Wasn't&April 14, 2017\\
 $\Box$&1114&At the Earth's Core&April 14, 2017\\
 
-\end{longtable}
-\end{center}
+\\  % SEASON 12 - 2018
+%$\Box$&1201&????&November 22, 2018\\
+%$\Box$&1202&????&November 22, 2018\\
+%$\Box$&1203&????&November 22, 2018\\
+%$\Box$&1204&????&November 22, 2018\\
+%$\Box$&1205&????&November 22, 2018\\
+%$\Box$&1206&????&November 22, 2018\\
+
+\end{longtable}\end{center}
 \end{document}
