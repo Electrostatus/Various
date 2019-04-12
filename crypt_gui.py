@@ -10,7 +10,7 @@ from PySide2.QtGui import QFontMetrics, QPalette, QColor, QBrush
 from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QProgressBar, QPushButton,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
-     QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget)
+     QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
 
 # new in this version (1.1.0):
 #   now works in python 3, with pyqt5 or pyside 2
@@ -26,6 +26,7 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 #   key now extra salty
 #   encryption mode changed from CBC to GCM
 #   what hash was previously used is now marked
+#   added adjustable key size
 #
 # version (1.0.0) - no documentation of whatever (this line added for 1.1.0!)
 
@@ -75,7 +76,7 @@ class main(QWidget):
 
     def genKey(self):
         "generate a random 32-character key"
-        n = 32
+        n = self.keySizeSB.value()
         char = string.printable.rstrip()#map(chr, range(256))
         while len(char) < n: char += char
         key = ''.join(random.sample(char, n))
@@ -146,7 +147,7 @@ class main(QWidget):
             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
             # color code encrypted/decrypted files
-            if n in self.encrypted:  # PySide doesn't have setTextColor
+            if n in self.encrypted:
                 #item.setTextColor(QColor(211, 70, 0))
                 item.setForeground(QBrush(QColor(211, 70, 0)))
                 # allowed encrypted filenames to be changed
@@ -200,7 +201,6 @@ class main(QWidget):
 
         self.messageLabel.setStyleSheet('background-color: {};'.format(color))
         self.messageLabel.setText(message)
-        #self.messageLabel.showMessage(message, secs * 1000)
         self.messageLabel.setToolTip(message)
 
         self.timeout = QTimer()
@@ -303,6 +303,9 @@ class main(QWidget):
             a.setInvertedAppearance(False)
             b.setInvertedAppearance(True)
             c.setInvertedAppearance(False)
+        for j, k, l in loops: a.setValue(int(j)); process(); sleep(0.002)
+        process(); a.setInvertedAppearance(True); process()
+        for j, k, l in ivops: a.setValue(int(j)); process(); sleep(0.002)
 
         # bars
         sleep(0.5); self.setMessage('Bars!'); process()
@@ -389,10 +392,10 @@ class main(QWidget):
         self.hashPbar.setValue(self.hashPbar.maximum())
         return hsh.hexdigest()
 
-    def hashKey(self, key, salt=b''):
+    def hashKey(self, key, salt=b''):  # argon2?
         "hashes a key for encrypting/decrypting file"
         salt = salt.encode() if type(salt) != bytes else salt
-        sha = hashlib.sha3_512##getattr(hashlib, 'sha3_512', 'sha512')
+        sha = hashlib.sha3_512
         key = sha(key.encode() + sha(key.encode() + salt).digest() + salt).digest()
         for i in range(11777): key = sha(key + sha(key + salt).digest() + salt).digest()
         return hashlib.sha3_256(key + salt).digest() # AES requires a 32 character key
@@ -541,6 +544,7 @@ class main(QWidget):
             os.remove(gn); self.setMessage('Invalid decryption!')
             return
         except Exception as err:
+            #print(type(err).__name__)
             os.remove(gn); self.setMessage('Invalid key or file!')
             return
         self.decryptPbar.setValue(self.decryptPbar.maximum())
@@ -709,8 +713,19 @@ class main(QWidget):
         self.genKeyButton.setSizePolicy(Fixed)
         self.genKeyButton.clicked.connect(self.genKey)
 
+        self.keySizeSB = QSpinBox()
+        self.keySizeSB.setToolTip('Length of key to generate')
+        self.keySizeSB.setRange(32, 1024)
+        self.keySizeSB.setMinimumSize(40, 20)
+        self.keySizeSB.setMaximumSize(40, 20)
+        self.keySizeSB.setSizePolicy(Fixed)
+        self.keySizeSB.setAlignment(Qt.AlignCenter)
+        self.keySizeSB.setButtonSymbols(QSpinBox.NoButtons)
+        self.keySizeSB.setWrapping(True)
+
         self.hl02.insertWidget(0, self.keyInput)
         self.hl02.insertWidget(1, self.genKeyButton)
+        self.hl02.insertWidget(2, self.keySizeSB)
 
         # right column - fourth item (4; horizontal layout 3)
         self.hl03 = QHBoxLayout()
@@ -840,7 +855,7 @@ class main(QWidget):
 
 if __name__ == '__main__':
     app.setStyle(QStyleFactory.create('Plastique'))
-    #print QStyleFactory.keys()
+    #print(QStyleFactory.keys())
 
     w = main(); w.show()
     ico = w.style().standardIcon(QStyle.SP_FileDialogDetailedView)
