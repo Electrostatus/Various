@@ -27,6 +27,7 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 #   encryption mode changed from CBC to GCM
 #   what hash was previously used is now marked
 #   added adjustable key size
+#   improved fancy folder display
 #
 # version (1.0.0) - no documentation of whatever (this line added for 1.1.0!)
 
@@ -75,7 +76,7 @@ class main(QWidget):
             self.extraLabel.setText(random.choice(hints))#hints[-1])#random.choice(hints))
 
     def genKey(self):
-        "generate a random 32-character key"
+        "generate a random key"
         n = self.keySizeSB.value()
         char = string.printable.rstrip()#map(chr, range(256))
         while len(char) < n: char += char
@@ -108,15 +109,23 @@ class main(QWidget):
         "displays current path, truncating as needed"
         if not path: return
 
-        # show truncated folder location
-        sl = '/' if '/' in path else '\\'
-        flg = Qt.ElideLeft  # find longest size the text can be
+        ell, sl = u'\u2026', os.path.sep # ellipsis, slash chars
+        lfg, rfg = Qt.ElideLeft, Qt.ElideRight
+        lst, wdh = os.path.basename(path), self.folderLabel.width()
+        path = path.replace(os.path.altsep, sl)
+
+        # truncate folder location        
         fnt = QFontMetrics(self.folderLabel.font())
-        txt = str(fnt.elidedText(path, flg, self.folderLabel.width()))
+        txt = str(fnt.elidedText(path, lfg, wdh))
+        clr = True if len(txt) < len(path) else False
 
         # truncate some more (don't show part of a folder name)
-        if len(txt) < len(path) and txt[1] != sl:
-            txt = u'\u2026' + sl + txt.split(sl, 1)[-1]  # ellipsis character
+        if clr and len(txt) < len(path) and txt[1] != sl:
+            txt = ell + sl + txt.split(sl, 1)[-1]
+
+        # don't truncate remaining folder name from the left
+        if clr and txt[2:] != lst and len(txt[2:]) <= len(lst) + 1:
+            txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
 
         self.folderLabel.setText(txt)
         self.folderLabel.setToolTip(path)
@@ -135,23 +144,23 @@ class main(QWidget):
         self.folderTable.setRowCount(len(names))
         self.folderTable.setColumnCount(1)
 
-
         if not names:  # no files in this folder, inform user
             self.setMessage('This folder has no files')
             return
 
         self.folderTable.blockSignals(True)
+        selEnab = Qt.ItemIsSelectable | Qt.ItemIsEnabled
         for i, n in enumerate(names):
             item = QTableWidgetItem()
             item.setText(n); item.setToolTip(n)
-            item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            item.setFlags(selEnab)
 
             # color code encrypted/decrypted files
             if n in self.encrypted:
-                #item.setTextColor(QColor(211, 70, 0))
-                item.setForeground(QBrush(QColor(211, 70, 0)))
+                item.setTextColor(QColor(211, 70, 0))
+                
                 # allowed encrypted filenames to be changed
-                item.setFlags(Qt.ItemIsEditable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                item.setFlags(selEnab | Qt.ItemIsEnabled)
             if n in self.decrypted:
                 item.setForeground(QBrush(QColor(0, 170, 255)))
             self.folderTable.setItem(i, 0, item)
@@ -392,7 +401,7 @@ class main(QWidget):
         self.hashPbar.setValue(self.hashPbar.maximum())
         return hsh.hexdigest()
 
-    def hashKey(self, key, salt=b''):  # argon2?
+    def hashKey(self, key, salt=b''):  # pbkdf2_hmac or scrypt
         "hashes a key for encrypting/decrypting file"
         salt = salt.encode() if type(salt) != bytes else salt
         sha = hashlib.sha3_512
