@@ -6,7 +6,7 @@ import time
 
 # this program can run with either pyqt5 or pyside2 - change PySide2 to PyQt5
 from PySide2.QtCore import QPoint, QTimer, Qt
-from PySide2.QtGui import QFontMetrics, QPalette, QColor, QBrush
+from PySide2.QtGui import QFontMetrics, QPalette, QColor
 from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QProgressBar, QPushButton,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
@@ -70,6 +70,7 @@ class main(QWidget):
          #'Brought to you by me, I\'m Htom Sirveaux!',
          'I wonder if there\'s beer on the sun',
          'Raspberry World: For all your raspberry needs. Off the beltline',
+         #'I\'ve plummented to my death and I can\'t get up',
                  ]
         if not hash(os.urandom(9)) % 4:
         #if not hash(os.urandom(4)) % 1:
@@ -109,26 +110,30 @@ class main(QWidget):
         "displays current path, truncating as needed"
         if not path: return
 
-        ell, sl = u'\u2026', os.path.sep # ellipsis, slash chars
+        vll, ell, sl = '\u22ee', '\u2026', os.path.sep # ellipsis, slash chars
         lfg, rfg = Qt.ElideLeft, Qt.ElideRight
         lst, wdh = os.path.basename(path), self.folderLabel.width()
+        
         path = path.replace(os.path.altsep, sl)
+        self.folderLabel.setToolTip(path)
 
         # truncate folder location        
         fnt = QFontMetrics(self.folderLabel.font())
         txt = str(fnt.elidedText(path, lfg, wdh))
-        clr = True if len(txt) < len(path) else False
+
+        if len(txt) <= 1:  # label is way too short
+            self.folderLabel.setText(vll)
+            return  # but when would this happen?
 
         # truncate some more (don't show part of a folder name)
-        if clr and len(txt) < len(path) and txt[1] != sl:
+        if len(txt) < len(path) and txt[1] != sl:
             txt = ell + sl + txt.split(sl, 1)[-1]
 
         # don't truncate remaining folder name from the left
-        if clr and txt[2:] != lst and len(txt[2:]) <= len(lst) + 1:
+        if txt[2:] != lst and len(txt[2:]) < len(lst) + 2:
             txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
 
         self.folderLabel.setText(txt)
-        self.folderLabel.setToolTip(path)
 
     def populateTable(self, path):
         "fill file table with file names"
@@ -158,11 +163,11 @@ class main(QWidget):
             # color code encrypted/decrypted files
             if n in self.encrypted:
                 item.setTextColor(QColor(211, 70, 0))
-                
                 # allowed encrypted filenames to be changed
-                item.setFlags(selEnab | Qt.ItemIsEnabled)
+                item.setFlags(selEnab | Qt.ItemIsEditable)
             if n in self.decrypted:
-                item.setForeground(QBrush(QColor(0, 170, 255)))
+                item.setForeground(QColor(0, 170, 255))
+                
             self.folderTable.setItem(i, 0, item)
         if len(names) > 5:
             self.setMessage('{:,} files'.format(len(names)), 7)
@@ -246,7 +251,7 @@ class main(QWidget):
         "locks buttons if True"
         stuff = [self.openButton, self.encryptButton, self.decryptButton,
                  self.genKeyButton, self.hashButton, self.showKeyCB,
-                 self.copyButton, self.keyInput, ]
+                 self.copyButton, self.keyInput, self.keySizeSB, ]
         for i in stuff:
             i.blockSignals(flag)
             i.setEnabled(not flag)
@@ -388,7 +393,9 @@ class main(QWidget):
         "returns the hash value of a file"
         hsh, blksize = hasher(), self.blksize
         fsz, csz = os.path.getsize(fn), 0.0
+        
         self.hashPbar.reset()
+        prog, title = '(# {:.02%}) {}', self.windowTitle()
         with open(fn, 'rb') as f:
             while 1:
                 blk = f.read(blksize)
@@ -398,7 +405,10 @@ class main(QWidget):
                 csz += blksize
                 self.hashPbar.setValue(int(round(csz * 100.0 / fsz)))
                 app.processEvents()
+                self.setWindowTitle(prog.format(csz / fsz, title))
+                
         self.hashPbar.setValue(self.hashPbar.maximum())
+        self.setWindowTitle(title)
         return hsh.hexdigest()
 
     def hashKey(self, key, salt=b''):  # pbkdf2_hmac or scrypt
@@ -451,6 +461,7 @@ class main(QWidget):
 
         csz = 0.0  # current processed value
         self.encryptPbar.reset()
+        prog, title = '(E {:.02%}) {}', self.windowTitle()
 
         with open(fn, 'rb') as src, open(gn, 'wb') as dst:
             dst.write(bytes([0] * 16))  # spacer for MAC written at end
@@ -474,6 +485,7 @@ class main(QWidget):
 
                 csz += blksize  # show progress
                 self.encryptPbar.setValue(int(round(csz * 100.0 / fsz)))
+                self.setWindowTitle(prog.format(csz / fsz, title))
                 app.processEvents()
 
             stuf = random.randrange(23)  # pack in more stuffing just 'cause
@@ -484,6 +496,7 @@ class main(QWidget):
             self.hashLabel.setText('MAC: ' + vault.hexdigest())
 
         self.encryptPbar.setValue(self.encryptPbar.maximum())
+        self.setWindowTitle(title)
         return gn
 
     def decrypt(self):
@@ -499,7 +512,7 @@ class main(QWidget):
         key = str(self.keyInput.text())
         if len(key) < self.minKeyLen:
             self.setMessage(('Key must be at least '
-                            '{} characters long').format(self.minKeyLen))
+            '{} characters long').format(self.minKeyLen))
             return
 
         self.lock()
@@ -522,6 +535,7 @@ class main(QWidget):
 
         self.decryptPbar.reset(); csz = 0.0  # current processed value
         chk, fnsz = AES.block_size, os.path.getsize(fn)
+        prog, title = '(D {:.02%}) {}', self.windowTitle()
         try:
             with open(fn, 'rb') as src, open(gn, 'wb') as dst:
                 # extract iv, salt
@@ -545,18 +559,22 @@ class main(QWidget):
 
                     csz += blksize  # show progress
                     self.decryptPbar.setValue(int(round(csz * 100.0 / fnsz)))
+                    self.setWindowTitle(prog.format(csz / fnsz, title))
                     app.processEvents()
 
                 dst.truncate(fsz)  # remove padding
             vault.verify(MAC); self.hashLabel.setText('')
         except (ValueError, KeyError) as err:
             os.remove(gn); self.setMessage('Invalid decryption!')
+            self.setWindowTitle(title)
             return
         except Exception as err:
             #print(type(err).__name__)
             os.remove(gn); self.setMessage('Invalid key or file!')
+            self.setWindowTitle(title)
             return
         self.decryptPbar.setValue(self.decryptPbar.maximum())
+        self.setWindowTitle(title)
         #print()
 
         # restore original file name
@@ -608,8 +626,7 @@ class main(QWidget):
     def setup(self):
         "constructs the gui"
         Fixed = QSizePolicy()
-        ##MinimumExpanding = QSizePolicy(1, 2)  # works only in PyQt4
-        MinimumExpanding = QSizePolicy(  # works in PySide and PyQt4
+        MinimumExpanding = QSizePolicy(
         QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.minKeyLen = 8
         self.maxKeyLen = 4096
@@ -632,6 +649,8 @@ class main(QWidget):
         self.openButton.setMaximumSize(60, 20)
         self.openButton.setSizePolicy(Fixed)
         self.openButton.clicked.connect(self.getFolder)
+        #ico = self.style().standardIcon(QStyle.SP_DirIcon)
+        #self.openButton.setIcon(ico)
 
         self.folderLabel = QLabel()
         self.folderLabel.setMinimumSize(135, 20)
@@ -678,7 +697,7 @@ class main(QWidget):
         self.hl01 = QHBoxLayout()
         self.hl01.setSpacing(5)
 
-        self.encryptButton = QPushButton('Encrypt')
+        self.encryptButton = QPushButton('Encrypt')#\U0001F512
         self.encryptButton.setToolTip('Encrypt selected file')
         self.encryptButton.setMinimumSize(60, 20)
         self.encryptButton.setMaximumSize(60, 20)
@@ -715,7 +734,7 @@ class main(QWidget):
         self.keyInput.setAlignment(Qt.AlignCenter)
         self.keyInput.textEdited.connect(self.showKeyLen)
 
-        self.genKeyButton = QPushButton('Gen Key')
+        self.genKeyButton = QPushButton('Gen Key')#\U0001F511
         self.genKeyButton.setToolTip('Generate a random key')
         self.genKeyButton.setMinimumSize(60, 20)
         self.genKeyButton.setMaximumSize(60, 20)
@@ -740,7 +759,7 @@ class main(QWidget):
         self.hl03 = QHBoxLayout()
         self.hl03.setSpacing(5)
 
-        self.decryptButton = QPushButton('Decrypt')
+        self.decryptButton = QPushButton('Decrypt')#\U0001F513
         self.decryptButton.setToolTip('Decrypt selected file')
         self.decryptButton.setMinimumSize(60, 20)
         self.decryptButton.setMaximumSize(60, 20)
@@ -815,7 +834,7 @@ class main(QWidget):
         self.hl05 = QHBoxLayout()
         self.hl05.setSpacing(5)
 
-        self.copyButton = QPushButton('Copy')
+        self.copyButton = QPushButton('Copy')#\U0001F4CB
         self.copyButton.setToolTip('Copy key or hash to clipboard')
         self.copyButton.setMinimumSize(60, 20)
         self.copyButton.setMaximumSize(60, 20)
@@ -863,7 +882,7 @@ class main(QWidget):
 
 
 if __name__ == '__main__':
-    app.setStyle(QStyleFactory.create('Plastique'))
+    #app.setStyle(QStyleFactory.create('Plastique')) # currently not existing
     #print(QStyleFactory.keys())
 
     w = main(); w.show()
