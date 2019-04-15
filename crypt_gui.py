@@ -1,3 +1,5 @@
+# Simple file encrypter
+# Copyright (C) 2019, Electrostatus
 from Crypto.Random import random
 from Crypto.Cipher import AES
 import os, sys, struct
@@ -12,26 +14,30 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
      QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
 
-# new in this version (1.1.0):
-#   now works in python 3, with pyqt5 or pyside 2
-#   encrypts original file name, now encrypts original file size
-#   original file name restored on decryption
-#   can (only) rename freshly encrypted files
-#   now can view files without extensions
-#   better handling on wrong key or file during decryption
-#   hash can now be copied right from its text with the mouse
-#   random tips occasionally appear on program start
-#   added version number
-#   key hashing improved
-#   encryption mode changed from CBC to GCM
-#   what hash was previously used is now marked
-#   added adjustable key size
-#   improved fancy folder display
-#   displays % progress in window title
+# New in this version (1.1.0) - First Update (2019-??-???):
+# ??? weblink ???
+#   CRYPTION CHANGES:
+#    encryption mode changed from CBC to GCM
+#    encrypts original file name, now encrypts original file size
+#    better handling on wrong key or file during decryption
+#    original file name restored on decryption
+#    can (only) rename freshly encrypted files
+#    added adjustable key size
+#    key hashing improved
+#   PROGRAM CHANGES:
+#    now works in python 3, with pyqt5 or pyside 2
+#    now can view files without extensions
+#    hash can now be copied right from its text with the mouse
+#    random "tips" occasionally appear on program start
+#    what hash was previously used is now marked
+#    displays % progress in window title
+#    improved fancy folder display
+#    added version number
 #
-# version (1.0.0) - no documentation of whatever (this line added for 1.1.0!)
+# Version (1.0.0) - First Release (2019-01-17):
+# https://orthallelous.wordpress.com/2019/01/17/simple-file-encrypter/
 
-VERSION = '1.1.0'# still in progress
+VERSION = '1.1.0' # almost done?
 
 global app
 app = QApplication(sys.argv)  # app is used within the program
