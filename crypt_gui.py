@@ -22,12 +22,12 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 #   hash can now be copied right from its text with the mouse
 #   random tips occasionally appear on program start
 #   added version number
-#   key hashing increased over ten thousand times, then doubled
-#   key now extra salty
+#   key hashing improved
 #   encryption mode changed from CBC to GCM
 #   what hash was previously used is now marked
 #   added adjustable key size
 #   improved fancy folder display
+#   displays % progress in window title
 #
 # version (1.0.0) - no documentation of whatever (this line added for 1.1.0!)
 
@@ -411,13 +411,19 @@ class main(QWidget):
         self.setWindowTitle(title)
         return hsh.hexdigest()
 
-    def hashKey(self, key, salt=b''):  # pbkdf2_hmac or scrypt
+    def hashKey(self, key, salt=b''):
         "hashes a key for encrypting/decrypting file"
         salt = salt.encode() if type(salt) != bytes else salt
-        sha = hashlib.sha3_512
-        key = sha(key.encode() + sha(key.encode() + salt).digest() + salt).digest()
-        for i in range(11777): key = sha(key + sha(key + salt).digest() + salt).digest()
-        return hashlib.sha3_256(key + salt).digest() # AES requires a 32 character key
+        key = key.encode() if type(key) != bytes else key
+
+        self.setMessage('Key Hashing...', col=(226, 182, 249))
+        
+        key = hashlib.pbkdf2_hmac('sha512', key, salt, 211151)#111119)
+        ##sha = hashlib.sha3_512
+        ##key = sha(key.encode() + sha(key.encode() + salt).digest() + salt).digest()
+        ##for i in range(11777): key = sha(key + sha(key + salt).digest() + salt).digest()
+        self.clearMessage()
+        return hashlib.sha3_256(key).digest() # AES requires a 32 character key
 
     def encrypt(self):
         "encrypt selected file with key"
