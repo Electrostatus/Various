@@ -76,6 +76,8 @@ class main(QWidget):
          'Raspberry World: For all your raspberry needs. Off the beltline',
          #'I\'ve plummented to my death and I can\'t get up',
          '<em>NOT</em> compatible with the older version!',
+         ('Hello there, fellow space travellers! Until somebody gives me '
+          'some new lines in KAS, that is all I can say. - Bentusi Exchange')
           ]
         if not hash(os.urandom(9)) % 4:
             self.extraLabel.setText(random.choice(hints))
@@ -416,11 +418,11 @@ class main(QWidget):
         "hashes a key for encrypting/decrypting file"
         salt = salt.encode() if type(salt) != bytes else salt
         key = key.encode() if type(key) != bytes else key
-
-        self.setMessage('Key Hashing...', col=(226, 182, 249))
-        key = hashlib.pbkdf2_hmac('sha512', key, salt, 333101)
-        self.clearMessage()
-        return hashlib.sha3_256(key).digest() # AES requires a 32 bit key
+        p = app.processEvents
+        self.setMessage('Key Hashing...', col=(226, 182, 249)); p()
+        key = hashlib.pbkdf2_hmac('sha512', key, salt, 333101); p()
+        self.clearMessage(); p()
+        return hashlib.sha3_256(key).digest() # AES requires a 32 char key
 
     def encrypt(self):
         "encrypt selected file with key"
@@ -604,21 +606,21 @@ class main(QWidget):
         self.clipboard.clear()
         self.clipboard.setText(txt)
 
-    def secs_fmt(self, secs):
+    def secs_fmt(self, s):
         "6357 -> '1h 45m 57s'"
-        R, Y, D, H, M = '', 31556952, 86400, 3600, 60
-        y = int(secs // Y); secs -= y * Y
-        d = int(secs // D); secs -= d * D
-        h = int(secs // H); secs -= h * H
-        m = int(secs // M); secs -= m * M
-        if secs:
-            if int(secs) == secs: R = str(int(secs)) + 's'
-            else: R = str(round(secs, 3)) + 's'
-        if m: R = str(m) + 'm ' + R
-        if h: R = str(h) + 'h ' + R
-        if d: R = str(d) + 'd ' + R
-        if y: R = str(y) + 'y ' + R
-        return R.strip()
+        Y, D, H, M = 31556952, 86400, 3600, 60
+        y = int(s // Y); s -= y * Y
+        d = int(s // D); s -= d * D
+        h = int(s // H); s -= h * H
+        m = int(s // M); s -= m * M
+
+        r = (str(int(s)) if int(s) == s else str(round(s, 3))) + 's'
+
+        if m: r = str(m) + 'm ' + r
+        if h: r = str(h) + 'h ' + r
+        if d: r = str(d) + 'd ' + r
+        if y: r = str(y) + 'y ' + r
+        return r.strip()
 
     def closeEvent(self, event):
         self.clipboard.clear()
