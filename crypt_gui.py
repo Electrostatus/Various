@@ -18,7 +18,7 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 #   original file name restored on decryption
 #   can (only) rename freshly encrypted files
 #   now can view files without extensions
-#   better handling on wrong key or file during decryption (it throws a message up instead of breaking!)
+#   better handling on wrong key or file during decryption
 #   hash can now be copied right from its text with the mouse
 #   random tips occasionally appear on program start
 #   added version number
@@ -58,23 +58,27 @@ class main(QWidget):
         hints = ['Freshly encrypted files can be renamed in the table!',
          'Clipboard is always cleared on program close!',
          'Keys can contain emoji if you <em>really</em> want: \U0001f4e6',
+         'Keys can contain emoji if you <em>really</em> want: \U0001F511',
          'This isn\'t a tip, I just wanted to say hello!',
          'Keys can be anywhere from 8 to 4096 characters long!',
          'This program was just an excuse to play with the progress bars!',
          'Select \'Party\' in the hash button for progress bar fun!',
-         'Did you know you can donate one or all of your vital organs to the Aperture Science Self-Esteem Fund for Girls? It\'s true!',
-         'It\'s been {:,} days since Half-Life 2: Episode Two'.format(int((time.time()-1191988800)/86400)),
+         ('Did you know you can donate one or all of your vital organs to '
+          'the Aperture Science Self-Esteem Fund for Girls? It\'s true!'),
+         ('It\'s been {:,} days since Half-Life 2: Episode '
+          'Two'.format(int((time.time()-1191988800)/86400))),
          'I\'m version {}!'.format(VERSION),
          'I\'m version {}.whatever!'.format(VERSION.split('.')[0]),
-         'Brought to you by me, I\'m <a href="https://orthallelous.wordpress.com/">Orthallelous!</a>',
+         ('Brought to you by me, I\'m <a href="https://orthallelous.word'
+          'press.com/">Orthallelous!</a>'),
          #'Brought to you by me, I\'m Htom Sirveaux!',
          'I wonder if there\'s beer on the sun',
          'Raspberry World: For all your raspberry needs. Off the beltline',
          #'I\'ve plummented to my death and I can\'t get up',
-                 ]
+         '<em>NOT</em> compatible with the older version!',
+          ]
         if not hash(os.urandom(9)) % 4:
-        #if not hash(os.urandom(4)) % 1:
-            self.extraLabel.setText(random.choice(hints))#hints[-1])#random.choice(hints))
+            self.extraLabel.setText(random.choice(hints))
 
     def genKey(self):
         "generate a random key"
@@ -113,11 +117,11 @@ class main(QWidget):
         vll, ell, sl = '\u22ee', '\u2026', os.path.sep # ellipsis, slash chars
         lfg, rfg = Qt.ElideLeft, Qt.ElideRight
         lst, wdh = os.path.basename(path), self.folderLabel.width()
-        
+
         path = path.replace(os.path.altsep, sl)
         self.folderLabel.setToolTip(path)
 
-        # truncate folder location        
+        # truncate folder location
         fnt = QFontMetrics(self.folderLabel.font())
         txt = str(fnt.elidedText(path, lfg, wdh))
 
@@ -142,7 +146,6 @@ class main(QWidget):
         names = []
         for n in os.listdir(path):
             if os.path.isdir(os.path.join(path, n)): continue  # folder
-            #if os.path.splitext(n)[1]:  # add only files with extensions
             names.append(n)
 
         self.folderTable.clearContents()
@@ -167,7 +170,6 @@ class main(QWidget):
                 item.setFlags(selEnab | Qt.ItemIsEditable)
             if n in self.decrypted:
                 item.setForeground(QColor(0, 170, 255))
-                
             self.folderTable.setItem(i, 0, item)
         if len(names) > 5:
             self.setMessage('{:,} files'.format(len(names)), 7)
@@ -176,8 +178,7 @@ class main(QWidget):
 
     def editFileName(self, item):
         "change file name"
-        old = str(item.toolTip())
-        new = str(item.text())
+        new, old = str(item.text()), str(item.toolTip())
 
         result = QMessageBox.question(self, 'Renaming?',
                  ("<p align='center'>Do you wish to rename<br>" +
@@ -294,7 +295,7 @@ class main(QWidget):
 
         # snake!
         self.setMessage('Snake time!')
-        self.messageLabel.setStyleSheet('background-color: rgb(127, 170, 255);')
+        self.messageLabel.setStyleSheet('background-color: rgb(127,170,255);')
         for i in range(2):
             for j, k, l in loops: a.setValue(int(j)); process(); sleep(0.002)
             process(); a.setInvertedAppearance(True); process()
@@ -323,7 +324,7 @@ class main(QWidget):
 
         # bars
         sleep(0.5); self.setMessage('Bars!'); process()
-        self.messageLabel.setStyleSheet('background-color: rgb(127, 255, 170);')
+        self.messageLabel.setStyleSheet('background-color: rgb(127,255,170);')
         for i in range(2):
             a.setValue(ax); time.sleep(0.65); a.setValue(am); sleep(0.25)
             process()
@@ -393,7 +394,7 @@ class main(QWidget):
         "returns the hash value of a file"
         hsh, blksize = hasher(), self.blksize
         fsz, csz = os.path.getsize(fn), 0.0
-        
+
         self.hashPbar.reset()
         prog, title = '(# {:.02%}) {}', self.windowTitle()
         with open(fn, 'rb') as f:
@@ -406,7 +407,7 @@ class main(QWidget):
                 self.hashPbar.setValue(int(round(csz * 100.0 / fsz)))
                 app.processEvents()
                 self.setWindowTitle(prog.format(csz / fsz, title))
-                
+
         self.hashPbar.setValue(self.hashPbar.maximum())
         self.setWindowTitle(title)
         return hsh.hexdigest()
@@ -417,13 +418,9 @@ class main(QWidget):
         key = key.encode() if type(key) != bytes else key
 
         self.setMessage('Key Hashing...', col=(226, 182, 249))
-        
-        key = hashlib.pbkdf2_hmac('sha512', key, salt, 211151)#111119)
-        ##sha = hashlib.sha3_512
-        ##key = sha(key.encode() + sha(key.encode() + salt).digest() + salt).digest()
-        ##for i in range(11777): key = sha(key + sha(key + salt).digest() + salt).digest()
+        key = hashlib.pbkdf2_hmac('sha512', key, salt, 333101)
         self.clearMessage()
-        return hashlib.sha3_256(key).digest() # AES requires a 32 character key
+        return hashlib.sha3_256(key).digest() # AES requires a 32 bit key
 
     def encrypt(self):
         "encrypt selected file with key"
@@ -434,11 +431,10 @@ class main(QWidget):
         if not os.path.exists(os.path.join(self.path, name)):
             self.setMessage('File does not exist')
             return
-
         key = str(self.keyInput.text())
         if len(key) < self.minKeyLen:
             self.setMessage(('Key must be at least '
-                            '{} characters long').format(self.minKeyLen))
+            '{} characters long').format(self.minKeyLen))
             return
 
         self.lock()
@@ -448,9 +444,9 @@ class main(QWidget):
         self.lock(False)
 
         self.populateTable(self.path)  # repopulate folder list
-        self.setMessage('Encrypted, saved "{}"'.format(os.path.basename(gn)),13)
-        self.extraLabel.setText('Encrypting took ' +
-                                self.secs_fmt(time.perf_counter() - t0))
+        bn, tt = os.path.basename(gn), time.perf_counter() - t0
+        self.setMessage('Encrypted, saved "{}"'.format(bn, 13))
+        self.extraLabel.setText('Encrypting took ' + self.secs_fmt(tt))
 
     def encryptFile(self, key, fn):
         "encrypts a file using AES (MODE_GCM)"
@@ -514,7 +510,6 @@ class main(QWidget):
         if not os.path.exists(os.path.join(self.path, name)):
             self.setMessage('File does not exist')
             return
-
         key = str(self.keyInput.text())
         if len(key) < self.minKeyLen:
             self.setMessage(('Key must be at least '
@@ -528,9 +523,10 @@ class main(QWidget):
         self.lock(False)
 
         self.populateTable(self.path)  # repopulate folder list
-        self.setMessage('Decrypted, saved "{}"'.format(os.path.basename(gn)),13)
-        self.extraLabel.setText('Decrypting took ' +
-                                self.secs_fmt(time.perf_counter() - t0))
+        bn, tt = os.path.basename(gn), time.perf_counter() - t0
+        self.setMessage('Decrypted, saved "{}"'.format(bn, 13))
+        self.extraLabel.setText('Decrypting took ' + self.secs_fmt(tt))
+
 
     def decryptFile(self, key, fn):
         "decrypts a file using AES (MODE_GCM)"
@@ -553,8 +549,8 @@ class main(QWidget):
                 sizes = src.read(struct.calcsize('<2Q'))
                 fsz, fnz = struct.unpack('<2Q', vault.decrypt(sizes))
 
-                # extract filename
-                rnz = fnz if not fnz % chk else fnz + chk - fnz % chk  # round up
+                # extract filename; round up fnz to nearest chk
+                rnz = fnz if not fnz % chk else fnz + chk - fnz % chk
                 rfn = vault.decrypt(src.read(rnz))[:fnz].decode()
                 self.setMessage('Found "{}"'.format(rfn), 13, (255, 211, 127))
 
@@ -570,18 +566,17 @@ class main(QWidget):
 
                 dst.truncate(fsz)  # remove padding
             vault.verify(MAC); self.hashLabel.setText('')
+
         except (ValueError, KeyError) as err:
             os.remove(gn); self.setMessage('Invalid decryption!')
             self.setWindowTitle(title)
             return
         except Exception as err:
-            #print(type(err).__name__)
             os.remove(gn); self.setMessage('Invalid key or file!')
             self.setWindowTitle(title)
             return
         self.decryptPbar.setValue(self.decryptPbar.maximum())
         self.setWindowTitle(title)
-        #print()
 
         # restore original file name
         name, ext = os.path.splitext(rfn); count = 1
@@ -611,20 +606,19 @@ class main(QWidget):
 
     def secs_fmt(self, secs):
         "6357 -> '1h 45m 57s'"
-        Y, D, H, M = 31556952, 86400, 3600, 60
+        R, Y, D, H, M = '', 31556952, 86400, 3600, 60
         y = int(secs // Y); secs -= y * Y
         d = int(secs // D); secs -= d * D
         h = int(secs // H); secs -= h * H
         m = int(secs // M); secs -= m * M
-        res = ''
         if secs:
-            if int(secs) == secs: res = str(int(secs)) + 's'
-            else: res = str(round(secs, 3)) + 's'
-        if m: res = str(m) + 'm ' + res
-        if h: res = str(h) + 'h ' + res
-        if d: res = str(d) + 'd ' + res
-        if y: res = str(y) + 'y ' + res
-        return res.strip()
+            if int(secs) == secs: R = str(int(secs)) + 's'
+            else: R = str(round(secs, 3)) + 's'
+        if m: R = str(m) + 'm ' + R
+        if h: R = str(h) + 'h ' + R
+        if d: R = str(d) + 'd ' + R
+        if y: R = str(y) + 'y ' + R
+        return R.strip()
 
     def closeEvent(self, event):
         self.clipboard.clear()
@@ -692,11 +686,10 @@ class main(QWidget):
         self.vl02 = QVBoxLayout()
 
         # right column - first item (0)
-        self.messageLabel = QLabel()#QStatusBar()
+        self.messageLabel = QLabel()
         self.messageLabel.setMinimumSize(290, 20)
         self.messageLabel.setMaximumSize(16777215, 20)
         self.messageLabel.setSizePolicy(MinimumExpanding)
-        #self.messageLabel.setSizeGripEnabled(False)
         self.messageLabel.setAlignment(Qt.AlignCenter)
 
         # right column - second item (2; horizontal layout 1)
@@ -719,9 +712,6 @@ class main(QWidget):
         palette = self.encryptPbar.palette()  # color of progress bar
         color = QColor(211, 70, 0)
         palette.setColor(QPalette.Highlight, color)
-        #palette.setColor(QPalette.Base, color)
-        #palette.setColor(QPalette.WindowText, color)
-        #palette.setColor(QPalette.Button, color)
         self.encryptPbar.setPalette(palette)
 
         self.hl01.insertWidget(0, self.encryptButton)
@@ -782,9 +772,6 @@ class main(QWidget):
         palette = self.decryptPbar.palette()  # color of progress bar
         color = QColor(0, 170, 255)
         palette.setColor(QPalette.Highlight, color)
-        #palette.setColor(QPalette.Base, color)
-        #palette.setColor(QPalette.WindowText, color)
-        #palette.setColor(QPalette.Button, color)
         self.decryptPbar.setPalette(palette)
 
         self.hl03.insertWidget(0, self.decryptButton)
@@ -811,10 +798,6 @@ class main(QWidget):
         palette = self.hashPbar.palette()  # color of progress bar
         color = QColor(31, 120, 73)
         palette.setColor(QPalette.Highlight, color)
-        #palette.setColor(QPalette.Base, color)
-        #palette.setColor(QPalette.WindowText, color)
-        #palette.setColor(QPalette.Button, color)
-        #palette.setColor(QPalette.ButtonText, color)
         self.hashPbar.setPalette(palette)
 
         self.hashButton = QPushButton('Hash')
@@ -850,7 +833,6 @@ class main(QWidget):
         menu2.addAction('Copy Key'); menu2.addAction('Copy Hash')
         self.copyButton.setMenu(menu2)
         menu2.triggered.connect(self.copyKeyHash)
-        #self.copyButton.clicked.connect(self.copyKeyHash)
 
         self.hashLabel = QLabel()
         self.hashLabel.setMinimumSize(225, 20)
@@ -888,9 +870,6 @@ class main(QWidget):
 
 
 if __name__ == '__main__':
-    #app.setStyle(QStyleFactory.create('Plastique')) # currently not existing
-    #print(QStyleFactory.keys())
-
     w = main(); w.show()
     ico = w.style().standardIcon(QStyle.SP_FileDialogDetailedView)
     w.setWindowIcon(ico)
