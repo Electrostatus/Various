@@ -1,5 +1,19 @@
 # Simple file encrypter
 # Copyright (C) 2019, Electrostatus
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from Crypto.Random import random
 from Crypto.Cipher import AES
 import os, sys, struct
@@ -14,8 +28,8 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
      QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
 
-# New in this version (1.1.0) - First Update (2019-??-???):
-# ??? weblink ???
+# New in this version (1.1.0) - First Update (2019-05-02):
+# https://orthallelous.wordpress.com/2019/05/02/simple-file-encrypter-version-1-1/
 #   CRYPTION CHANGES:
 #    encryption mode changed from CBC to GCM
 #    encrypts original file name, now encrypts original file size
@@ -33,11 +47,13 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 #    displays % progress in window title
 #    improved fancy folder display
 #    added version number
+#    added cancel button
+#    placed this file/program under GNU General Public License v3.0
 #
 # Version (1.0.0) - First Release (2019-01-17):
 # https://orthallelous.wordpress.com/2019/01/17/simple-file-encrypter/
 
-VERSION = '1.1.0' # almost done?
+VERSION = '1.1.0'
 
 global app
 app = QApplication(sys.argv)  # app is used within the program
@@ -122,11 +138,11 @@ class main(QWidget):
         "displays current path, truncating as needed"
         if not path: return
 
-        vll, ell, sl = '\u22ee', '\u2026', os.path.sep # ellipsis, slash chars
+        ell, sl = '\u2026', os.path.sep # ellipsis, slash chars
         lfg, rfg = Qt.ElideLeft, Qt.ElideRight
         lst, wdh = os.path.basename(path), self.folderLabel.width()
 
-        path = path.replace(os.path.altsep, sl)
+        path = path.replace(os.path.altsep or '\\', sl)
         self.folderLabel.setToolTip(path)
 
         # truncate folder location
@@ -134,7 +150,7 @@ class main(QWidget):
         txt = str(fnt.elidedText(path, lfg, wdh))
 
         if len(txt) <= 1:  # label is way too short
-            self.folderLabel.setText(vll)
+            self.folderLabel.setText('\u22ee')
             return  # but when would this happen?
 
         # truncate some more (don't show part of a folder name)
@@ -144,6 +160,7 @@ class main(QWidget):
         # don't truncate remaining folder name from the left
         if txt[2:] != lst and len(txt[2:]) < len(lst) + 2:
             txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
+        # you'd think len(txt) < len(lst) would work, but no; you'd be wrong
 
         self.folderLabel.setText(txt)
 
@@ -260,7 +277,8 @@ class main(QWidget):
         "locks buttons if True"
         stuff = [self.openButton, self.encryptButton, self.decryptButton,
                  self.genKeyButton, self.hashButton, self.showKeyCB,
-                 self.copyButton, self.keyInput, self.keySizeSB, ]
+                 self.copyButton, self.keyInput,
+                 self.keySizeSB, self.folderTable, ]
         for i in stuff:
             i.blockSignals(flag)
             i.setEnabled(not flag)
@@ -398,12 +416,31 @@ class main(QWidget):
         self.extraLabel.setText(str(action.text()) + ' hash took ' +
                                 self.secs_fmt(time.perf_counter() - t0))
 
+    def setCancel(self):
+        "cancel operation"
+        self._requestStop = True
+
+    def showCancelButton(self, state=False):
+        "show/hide cancel button"
+        self.cancelButton.blockSignals(not state)
+        self.cancelButton.setEnabled(state)
+        if state:
+            self.cancelButton.show()
+            self.keyInput.hide()
+            self.genKeyButton.hide()
+            self.keySizeSB.hide()
+        else:
+            self.cancelButton.hide()
+            self.keyInput.show()
+            self.genKeyButton.show()
+            self.keySizeSB.show()
+
     def hashFile(self, fn, hasher):
         "returns the hash value of a file"
         hsh, blksize = hasher(), self.blksize
         fsz, csz = os.path.getsize(fn), 0.0
 
-        self.hashPbar.reset()
+        self.hashPbar.reset(); self.showCancelButton(True)
         prog, title = '(# {:.02%}) {}', self.windowTitle()
         with open(fn, 'rb') as f:
             while 1:
@@ -415,9 +452,15 @@ class main(QWidget):
                 self.hashPbar.setValue(int(round(csz * 100.0 / fsz)))
                 app.processEvents()
                 self.setWindowTitle(prog.format(csz / fsz, title))
+                if self._requestStop: break
 
         self.hashPbar.setValue(self.hashPbar.maximum())
-        self.setWindowTitle(title)
+        self.setWindowTitle(title); self.showCancelButton(False)
+
+        if self._requestStop:
+            self.setMessage('Hashing canceled!')
+            self.hashPbar.setValue(self.hashPbar.minimum())
+            self._requestStop = False; return
         return hsh.hexdigest()
 
     def hashKey(self, key, salt=b''):
@@ -426,7 +469,7 @@ class main(QWidget):
         key = key.encode() if type(key) != bytes else key
         p = app.processEvents
         self.setMessage('Key Hashing...', col=(226, 182, 249)); p()
-        key = hashlib.pbkdf2_hmac('sha512', key, salt, 333101); p()
+        key = hashlib.pbkdf2_hmac('sha512', key, salt, 444401); p()
         self.clearMessage(); p()
         return hashlib.sha3_256(key).digest() # AES requires a 32 char key
 
@@ -471,7 +514,8 @@ class main(QWidget):
 
         csz = 0.0  # current processed value
         self.encryptPbar.reset()
-        prog, title = '(E {:.02%}) {}', self.windowTitle()
+        prog, title = '({:.02%}) {}', self.windowTitle()
+        self.showCancelButton(True)
 
         with open(fn, 'rb') as src, open(gn, 'wb') as dst:
             dst.write(bytes([0] * 16))  # spacer for MAC written at end
@@ -498,15 +542,22 @@ class main(QWidget):
                 self.setWindowTitle(prog.format(csz / fsz, title))
                 app.processEvents()
 
-            stuf = random.randrange(23)  # pack in more stuffing just 'cause
-            fing = b''.join(bytes(sample(chars, 16)) for i in range(stuf))
-            dst.write(vault.encrypt(fing))  # and for annoyance
+                if self._requestStop: break
+            if not self._requestStop:
+                stuf = random.randrange(23)  # pack in more stuffing
+                fing = b''.join(bytes(sample(chars, 16)) for i in range(stuf))
+                dst.write(vault.encrypt(fing))  # and for annoyance
 
-            dst.seek(0); dst.write(vault.digest())  # write MAC
-            self.hashLabel.setText('MAC: ' + vault.hexdigest())
+                dst.seek(0); dst.write(vault.digest())  # write MAC
+                self.hashLabel.setText('MAC: ' + vault.hexdigest())
 
         self.encryptPbar.setValue(self.encryptPbar.maximum())
-        self.setWindowTitle(title)
+        self.setWindowTitle(title); self.showCancelButton(False)
+
+        if self._requestStop:
+            self.setMessage('Encryption canceled!')
+            self.encryptPbar.setValue(self.encryptPbar.minimum())
+            self._requestStop = False; os.remove(gn); return
         return gn
 
     def decrypt(self):
@@ -535,7 +586,6 @@ class main(QWidget):
         self.setMessage('Decrypted, saved "{}"'.format(bn, 13))
         self.extraLabel.setText('Decrypting took ' + self.secs_fmt(tt))
 
-
     def decryptFile(self, key, fn):
         "decrypts a file using AES (MODE_GCM)"
         blksize = self.blksize
@@ -545,13 +595,14 @@ class main(QWidget):
 
         self.decryptPbar.reset(); csz = 0.0  # current processed value
         chk, fnsz = AES.block_size, os.path.getsize(fn)
-        prog, title = '(D {:.02%}) {}', self.windowTitle()
+        prog, title = '({:.02%}) {}', self.windowTitle()
         try:
             with open(fn, 'rb') as src, open(gn, 'wb') as dst:
                 # extract iv, salt
                 MAC = src.read(16)
                 iv = src.read(AES.block_size * 2); salt = src.read(256)
                 vault = AES.new(self.hashKey(key, salt), AES.MODE_GCM, iv)
+                self.showCancelButton(True)
 
                 # extract file size, file name length
                 sizes = src.read(struct.calcsize('<2Q'))
@@ -569,11 +620,13 @@ class main(QWidget):
 
                     csz += blksize  # show progress
                     self.decryptPbar.setValue(int(round(csz * 100.0 / fnsz)))
-                    self.setWindowTitle(prog.format(csz / fnsz, title))
+                    self.setWindowTitle(prog.format(1 - (csz / fnsz), title))
                     app.processEvents()
-
-                dst.truncate(fsz)  # remove padding
-            vault.verify(MAC); self.hashLabel.setText('')
+                    if self._requestStop: break
+                        
+                if not self._requestStop: dst.truncate(fsz)  # remove padding
+            if not self._requestStop:
+                vault.verify(MAC); self.hashLabel.setText('')
 
         except (ValueError, KeyError) as err:
             os.remove(gn); self.setMessage('Invalid decryption!')
@@ -584,7 +637,12 @@ class main(QWidget):
             self.setWindowTitle(title)
             return
         self.decryptPbar.setValue(self.decryptPbar.maximum())
-        self.setWindowTitle(title)
+        self.setWindowTitle(title); self.showCancelButton(False)
+
+        if self._requestStop:
+            self.setMessage('Decryption canceled!')
+            self.decryptPbar.setValue(self.decryptPbar.minimum())
+            self._requestStop = False; os.remove(gn); return
 
         # restore original file name
         name, ext = os.path.splitext(rfn); count = 1
@@ -651,7 +709,7 @@ class main(QWidget):
         self.hl00 = QHBoxLayout()
         self.hl00.setSpacing(5)
 
-        self.openButton = QPushButton('Open')
+        self.openButton = QPushButton('&Open')
         self.openButton.setToolTip('Open folder')
         self.openButton.setMinimumSize(60, 20)
         self.openButton.setMaximumSize(60, 20)
@@ -704,7 +762,7 @@ class main(QWidget):
         self.hl01 = QHBoxLayout()
         self.hl01.setSpacing(5)
 
-        self.encryptButton = QPushButton('Encrypt')#\U0001F512
+        self.encryptButton = QPushButton('&Encrypt')#\U0001F512
         self.encryptButton.setToolTip('Encrypt selected file')
         self.encryptButton.setMinimumSize(60, 20)
         self.encryptButton.setMaximumSize(60, 20)
@@ -729,6 +787,19 @@ class main(QWidget):
         self.hl02 = QHBoxLayout()
         self.hl02.setSpacing(5)
 
+        self.cancelButton = QPushButton('C&ANCEL')
+        self.cancelButton.setToolTip('Cancels current operation')
+        self.cancelButton.setMinimumSize(70, 24)
+        self.cancelButton.setMaximumSize(70, 24)
+        self.cancelButton.setSizePolicy(Fixed)
+        self.cancelButton.clicked.connect(self.setCancel)
+        font = self.cancelButton.font(); font.setBold(True)
+        self.cancelButton.setFont(font)
+        self.cancelButton.blockSignals(True)
+        self.cancelButton.setEnabled(False)
+        self.cancelButton.hide()
+        self._requestStop = False
+
         self.keyInput = QLineEdit()
         self.keyInput.setMinimumSize(225, 20)
         self.keyInput.setMaximumSize(16777215, 20)
@@ -738,7 +809,7 @@ class main(QWidget):
         self.keyInput.setAlignment(Qt.AlignCenter)
         self.keyInput.textEdited.connect(self.showKeyLen)
 
-        self.genKeyButton = QPushButton('Gen Key')#\U0001F511
+        self.genKeyButton = QPushButton('&Gen Key')#\U0001F511
         self.genKeyButton.setToolTip('Generate a random key')
         self.genKeyButton.setMinimumSize(60, 20)
         self.genKeyButton.setMaximumSize(60, 20)
@@ -755,15 +826,16 @@ class main(QWidget):
         self.keySizeSB.setButtonSymbols(QSpinBox.NoButtons)
         self.keySizeSB.setWrapping(True)
 
-        self.hl02.insertWidget(0, self.keyInput)
-        self.hl02.insertWidget(1, self.genKeyButton)
-        self.hl02.insertWidget(2, self.keySizeSB)
+        self.hl02.insertWidget(0, self.cancelButton)
+        self.hl02.insertWidget(1, self.keyInput)
+        self.hl02.insertWidget(2, self.genKeyButton)
+        self.hl02.insertWidget(3, self.keySizeSB)
 
         # right column - fourth item (4; horizontal layout 3)
         self.hl03 = QHBoxLayout()
         self.hl03.setSpacing(5)
 
-        self.decryptButton = QPushButton('Decrypt')#\U0001F513
+        self.decryptButton = QPushButton('&Decrypt')#\U0001F513
         self.decryptButton.setToolTip('Decrypt selected file')
         self.decryptButton.setMinimumSize(60, 20)
         self.decryptButton.setMaximumSize(60, 20)
@@ -789,7 +861,7 @@ class main(QWidget):
         self.hl04 = QHBoxLayout()
         self.hl04.setSpacing(5)
 
-        self.showKeyCB = QCheckBox('Show Key')
+        self.showKeyCB = QCheckBox('&Show Key')
         self.showKeyCB.setToolTip('Show/Hide key value')
         self.showKeyCB.setMinimumSize(75, 20)
         self.showKeyCB.setMaximumSize(75, 20)
@@ -808,7 +880,7 @@ class main(QWidget):
         palette.setColor(QPalette.Highlight, color)
         self.hashPbar.setPalette(palette)
 
-        self.hashButton = QPushButton('Hash')
+        self.hashButton = QPushButton('&Hash')
         self.hashButton.setToolTip('Determine file hash')
         self.hashButton.setMinimumSize(60, 20)
         self.hashButton.setMaximumSize(60, 20)
@@ -831,7 +903,7 @@ class main(QWidget):
         self.hl05 = QHBoxLayout()
         self.hl05.setSpacing(5)
 
-        self.copyButton = QPushButton('Copy')#\U0001F4CB
+        self.copyButton = QPushButton('&Copy')#\U0001F4CB
         self.copyButton.setToolTip('Copy key or hash to clipboard')
         self.copyButton.setMinimumSize(60, 20)
         self.copyButton.setMaximumSize(60, 20)
