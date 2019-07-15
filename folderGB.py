@@ -314,6 +314,8 @@ class pathBox(QFrame):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
+    w = folderGroupBox()
+    #w = pathBox()
     #w.setPath('B:/floppy/my/on/somewhere/stored/folder/nested/deeply/and/long/very/a/on/data/important/Version 3 final edited')
     
     w.show()     
