@@ -28,7 +28,8 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
      QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
 
-# New in this version (1.1.0) - First Update (2019-05-02):
+#   fixed cancel button not disappearing on failed decryption (2019-11-07)
+# Version (1.1.0) - First Update (2019-05-02):
 # https://orthallelous.wordpress.com/2019/05/02/simple-file-encrypter-version-1-1/
 #   CRYPTION CHANGES:
 #    encryption mode changed from CBC to GCM
@@ -630,11 +631,11 @@ class main(QWidget):
 
         except (ValueError, KeyError) as err:
             os.remove(gn); self.setMessage('Invalid decryption!')
-            self.setWindowTitle(title)
+            self.setWindowTitle(title); self.showCancelButton(False)
             return
         except Exception as err:
             os.remove(gn); self.setMessage('Invalid key or file!')
-            self.setWindowTitle(title)
+            self.setWindowTitle(title); self.showCancelButton(False)
             return
         self.decryptPbar.setValue(self.decryptPbar.maximum())
         self.setWindowTitle(title); self.showCancelButton(False)
