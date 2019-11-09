@@ -28,6 +28,7 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
      QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
 
+#   fixed showFolder/showFolder now accurate to elide path: https://orthallelous.wordpress.com/2019/07/15/elide-path/ (2019-11-09)
 #   fixed cancel button not disappearing on failed decryption (2019-11-07)
 # Version (1.1.0) - First Update (2019-05-02):
 # https://orthallelous.wordpress.com/2019/05/02/simple-file-encrypter-version-1-1/
@@ -151,16 +152,16 @@ class main(QWidget):
         txt = str(fnt.elidedText(path, lfg, wdh))
 
         if len(txt) <= 1:  # label is way too short
-            self.folderLabel.setText('\u22ee')
+            self.folderLabel.setText('\u22ee' if txt != sl else txt)
             return  # but when would this happen?
 
         # truncate some more (don't show part of a folder name)
         if len(txt) < len(path) and txt[1] != sl:
             txt = ell + sl + txt.split(sl, 1)[-1]
 
-        # don't truncate remaining folder name from the left
-        if txt[2:] != lst and len(txt[2:]) < len(lst) + 2:
-            txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
+            # don't truncate remaining folder name from the left
+            if txt[2:] != lst and len(txt[2:]) < len(lst) + 2:
+                txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
         # you'd think len(txt) < len(lst) would work, but no; you'd be wrong
 
         self.folderLabel.setText(txt)
