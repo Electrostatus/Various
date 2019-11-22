@@ -3,7 +3,7 @@ import random
 
 # to use PyQt, change PySide2 to PyQt5,
 #   and comment out Signal/uncomment pyqtSignal as Signal below
-from PySide2.QtCore    import (QBuffer, QEvent, QIODevice, QRegExp, Qt,
+from PySide2.QtCore    import (QBuffer, QEvent, QIODevice, QRegExp, Qt,#QTimer,
                                QPoint, QPointF, QRectF, QSize, QSizeF, QRect,
                                Signal)  # PySide2
                                #pyqtSignal as Signal)  # PyQt5
@@ -194,8 +194,7 @@ class colorPicker(QDialog):
 
     def setup(self):
         self.setAttribute(Qt.WA_DeleteOnClose)
-        fixed = QSizePolicy(QSizePolicy.Fixed,
-                                  QSizePolicy.Fixed)
+        fixed = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         rightCenter = (Qt.AlignRight | Qt.AlignVCenter)
 
         # all the input boxes
@@ -224,6 +223,7 @@ class colorPicker(QDialog):
         self.satInput = QSpinBox()
         self.valInput = QSpinBox()
         self.hsvInputs = [self.hueInput, self.satInput, self.valInput]
+        self.hueInput.setWrapping(True)
 
         self.hueLabel = QLabel('&H:'); self.hueLabel.setToolTip('Hue')
         self.satLabel = QLabel('&S:'); self.satLabel.setToolTip('Saturation')
@@ -420,6 +420,35 @@ class wheel(QWidget):
         self.setMouseTracking(True)
         self.installEventFilter(self)
 
+        self._startedTimer = False
+
+##    def timerSpinner(self):
+##        "won't this be fun"
+##        self.o_ang -= 1; self.o_ang %= 360
+##        stable = False
+##        
+##        colWhl = QConicalGradient(self.cen, self.o_ang)
+##        whl_cols = [Qt.red, Qt.magenta,
+##                    Qt.blue, Qt.cyan, Qt.green,
+##                    Qt.yellow, Qt.red]
+##        for i, c in enumerate(whl_cols[::self.rot_d]):
+##            colWhl.setColorAt(i / 6.0, c)
+##        
+##        if stable:  # crosshairs stay on color
+##            t = radians(self.hue + self.o_ang * -self.rot_d) * -self.rot_d
+##            r = self.sat / 255.0 * self.cW_rad
+##            x, y = r * cos(t) + self.cen.x(), r * -sin(t) + self.cen.y()
+##            self.chPt = QPointF(x, y)
+##        else:  # crosshairs stay on point
+##            t = atan2(self.cen.y() - self.pos.y(), self.pos.x() - self.cen.x())
+##            h = (int(degrees(t)) - self.o_ang) * -self.rot_d
+##            self.hue = (h if h > 0 else h + 360) % 360
+##            col = QColor(); col.setHsv(self.hue, self.sat, self.value)
+##            self.currentColorChanged.emit(col)
+##
+##        self.cWhlBrush1 = QBrush(colWhl)
+##        self.update() 
+
     def resizeEvent(self, event):
         self.setup()  # re-construct the sizes
         self.setNamedColors(self._namedColorList)
@@ -478,6 +507,12 @@ class wheel(QWidget):
             t = atan2(self.cen.y() - pos.y(), pos.x() - self.cen.x())
             if self.colWhlPath.contains(pos):  # in the color wheel
                 self.chPt = pos
+
+                #if not self._startedTimer:
+                #    self.timer = QTimer()
+                #    self.timer.timeout.connect(self.timerSpinner)
+                #    self.timer.start(30.303)
+                #    self._startedTimer = True
 
                 # hue -> mouse angle (same as t here)
                 h = (int(degrees(t)) - self.o_ang) * -self.rot_d
