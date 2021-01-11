@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018 - 2020 Electrostatus
+# Copyright (c) 2018 - 2021 Electrostatus
 # https://orthallelous.wordpress.com/2018/12/19/custom-color-dialog/
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
