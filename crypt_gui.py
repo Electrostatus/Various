@@ -625,7 +625,7 @@ class main(QWidget):
                     self.setWindowTitle(prog.format(1 - (csz / fnsz), title))
                     app.processEvents()
                     if self._requestStop: break
-                        
+
                 if not self._requestStop: dst.truncate(fsz)  # remove padding
             if not self._requestStop:
                 vault.verify(MAC); self.hashLabel.setText('')

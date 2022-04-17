@@ -2,17 +2,17 @@
 #
 # Copyright (c) 2018 - 2021 Electrostatus
 # https://orthallelous.wordpress.com/2018/12/19/custom-color-dialog/
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -148,7 +148,7 @@ class colorPicker(QDialog):
         self._mag = magnifier(); self._mag.setBackground(self._img)
         self._mag.setSize(11, 11)
         scene.addItem(self._mag); self._view.setScene(scene)
-        
+
         self._appview = QApplication
         self._appview.setOverrideCursor(Qt.CrossCursor)
 
@@ -450,14 +450,14 @@ class wheel(QWidget):
 ##        "won't this be fun"
 ##        self.o_ang -= 1; self.o_ang %= 360
 ##        stable = False
-##        
+##
 ##        colWhl = QConicalGradient(self.cen, self.o_ang)
 ##        whl_cols = [Qt.red, Qt.magenta,
 ##                    Qt.blue, Qt.cyan, Qt.green,
 ##                    Qt.yellow, Qt.red]
 ##        for i, c in enumerate(whl_cols[::self.rot_d]):
 ##            colWhl.setColorAt(i / 6.0, c)
-##        
+##
 ##        if stable:  # crosshairs stay on color
 ##            t = radians(self.hue + self.o_ang * -self.rot_d) * -self.rot_d
 ##            r = self.sat / 255.0 * self.cW_rad
@@ -471,7 +471,7 @@ class wheel(QWidget):
 ##            self.currentColorChanged.emit(col)
 ##
 ##        self.cWhlBrush1 = QBrush(colWhl)
-##        self.update() 
+##        self.update()
 
     def resizeEvent(self, event):
         self.setup()  # re-construct the sizes
@@ -665,7 +665,7 @@ class wheel(QWidget):
         self.vInArcPath.arcTo(self.vIoBox, self.s_ang, self.e_ang - self.s_ang)
         self.vInArcPath.arcTo(self.vAiBox, self.e_ang, self.s_ang - self.e_ang)
         self.vInArcPath.closeSubpath()
-        
+
 
         self.colWhlPath = QPainterPath()
         self.colWhlPath.addEllipse(self.cWhBox)
@@ -683,7 +683,7 @@ class magnifier(QGraphicsPixmapItem):
 
         self.setFlags(QGraphicsItem.ItemIsMovable)
         self.setAcceptHoverEvents(True)#setAcceptsHoverEvents(True)
-        
+
         self.zoom = self.width = self.height = 10
         self.size = QSize(self.width, self.height)
 
@@ -692,7 +692,7 @@ class magnifier(QGraphicsPixmapItem):
         zh = 0 if self.height % 2 else self.zoom
         self.offset = QPoint((self.width  * self.zoom + zw) // 2,
                              (self.height * self.zoom + zh) // 2)
-        
+
         self.background = None
         self.setPos(QCursor().pos() - self.offset)
 
@@ -702,12 +702,12 @@ class magnifier(QGraphicsPixmapItem):
         img = QPixmap(image.width() + 1, image.height() + 1)
         p = QPainter(img); p.drawPixmap(1, 1, image)
         # the +1 is for the grid around the image; otherwise grid is cut off
-        
+
         w, h, z = img.width(), img.height(), self.zoom
         for i in range(max(self.width, self.height) + 1):
             p.drawLine(QPoint(0, i * z), QPoint(w, i * z)) # horiztonal lines
             p.drawLine(QPoint(i * z, 0), QPoint(i * z, h)) # vertical lines
-                       
+
         return img
 
     def setBackground(self, img):
@@ -723,13 +723,13 @@ class magnifier(QGraphicsPixmapItem):
         "re-set some things"
         w, h, z = self.width, self.height, self.zoom
         zw = 0 if w % 2 else z; zh = 0 if h % 2 else z
-        
+
         self.size = QSize(w, h)
         self.offset = QPoint((w * z + zw) // 2, (h * z + zh) // 2)
 
         pos = QCursor().pos() - self.offset
         self.setPos(pos); self._setView(pos)
-    
+
     def _setView(self, pos):
         "grab viewpoint around pos, set as image"
         if self.background is None: return
@@ -737,10 +737,10 @@ class magnifier(QGraphicsPixmapItem):
         topLeft = pos - QPoint(self.width // 2, self.height // 2)
         try: topLeft = topLeft.toPoint()
         except: pass  # ugh
-        
+
         rect = QRect(topLeft, self.size)
         img = self.background.copy(rect)  # crop small section
-        
+
         w, h, z = img.width(), img.height(), self.zoom  # scale small section
         img = img.scaled(w * z, h * z, Qt.KeepAspectRatio)
         self.setPixmap(self.drawGrid(img))

@@ -260,7 +260,7 @@ class pathBox(QFrame):
     def elidePath(self):
         "displays current path, truncating as needed"
         Lflg, Rflg = Qt.ElideLeft, Qt.ElideRight
-        
+
         labl = self.pathLabel
         vl, el, sl = u'\u22ee', u'\u2026', os.sep
         path, wdth = self.path, labl.width()
@@ -317,6 +317,6 @@ if __name__ == '__main__':
     w = folderGroupBox()
     #w = pathBox()
     #w.setPath('B:/floppy/my/on/somewhere/stored/folder/nested/deeply/and/long/very/a/on/data/important/Version 3 final edited')
-    
-    w.show()     
+
+    w.show()
     sys.exit(app.exec_())
