@@ -1,5 +1,5 @@
 # Simple file encrypter
-# Copyright (C) 2019 - 2023, Electrostatus
+# Copyright (C) 2019 - 2025, Electrostatus
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,22 +14,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# pip install pycryptodome
 from Crypto.Random import random
 from Crypto.Cipher import AES
 import os, sys, struct
 import hashlib, string
 import time
 
-# this program can run with either pyqt5 or pyside2 - change PySide2 to PyQt5
-from PySide2.QtCore import QPoint, QTimer, Qt
-from PySide2.QtGui import QFontMetrics, QPalette, QColor
-from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
+# pip install pyside6
+from PySide6.QtCore import QPoint, QTimer, Qt
+from PySide6.QtGui import QActionGroup, QKeySequence, QFontMetrics, QColor
+from PySide6.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
      QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QProgressBar, QPushButton,
      QSizePolicy, QSpacerItem, QSplitter, QStatusBar, QCheckBox, QStyleFactory,
-     QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox)
+     QTableWidget, QTableWidgetItem, QToolTip, QVBoxLayout, QWidget, QSpinBox,
+      QToolButton, QWidgetAction, QGridLayout)
 
-#   fixed showFolder/showFolder now accurate to elide path: https://orthallelous.wordpress.com/2019/07/15/elide-path/ (2019-11-09)
-#   fixed cancel button not disappearing on failed decryption (2019-11-07)
+
+# Version (1.2.0) - Second Update (2025-09-16)
+# https://orthallelous.wordpress.com/2025/09/16/simple-file-encrypter-version-1-2/
+#   PROGRAM CHANGES:
+#    moved to PySide6 (2025-06-07)
+#    added more options to the generate key button (2025-05-24)
+#    added short 'how to' description (2025-05-17)
+#    fiddled the the layout a bit, switched to icons for some buttons (2025-05-10)
+#    changed copy and hash buttons to tool buttons for better selecting (2025-05-07)
+#    fixed showFolder/showFolder now accurate to elide path: https://orthallelous.wordpress.com/2019/07/15/elide-path/ (2019-11-09)
+#    fixed cancel button not disappearing on failed decryption (2019-11-07)
+#
 # Version (1.1.0) - First Update (2019-05-02):
 # https://orthallelous.wordpress.com/2019/05/02/simple-file-encrypter-version-1-1/
 #   CRYPTION CHANGES:
@@ -55,7 +67,7 @@ from PySide2.QtWidgets import (QApplication, QStyle, QFileDialog, QMessageBox,
 # Version (1.0.0) - First Release (2019-01-17):
 # https://orthallelous.wordpress.com/2019/01/17/simple-file-encrypter/
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 global app
 app = QApplication(sys.argv)  # app is used within the program
@@ -65,7 +77,7 @@ class main(QWidget):
         super(main, self).__init__(parent)
         self.setup()  # connections, widgets, layouts, etc.
 
-        self.blksize = 2 ** 20  # 1 MB; must be divisible by 16
+        self.blksize = 2 ** 21  # 2 MB; must be divisible by 16
         self.ext = '.enc'  # extension is appended to encrypted files
         self.path = ''
         self.encrypted = []  # to highlight done files in list
@@ -104,22 +116,66 @@ class main(QWidget):
           'some new lines in KAS, that is all I can say. - Bentusi Exchange')
           ]
         if not hash(os.urandom(9)) % 4:
-            self.extraLabel.setText(random.choice(hints))
+            hnt = random.choice(hints)
+            self.extraLabel.setText(hnt)
+            self.extraLabel.setToolTip(hnt)
 
     def genKey(self):
         "generate a random key"
         n = self.keySizeSB.value()
-        char = string.printable.rstrip()#map(chr, range(256))
-        while len(char) < n: char += char
-        key = ''.join(random.sample(char, n))
+
+        #char = string.printable.strip()
+        char = ''
+        if self.useUprCB.isChecked(): char += string.ascii_uppercase
+        if self.useLwrCB.isChecked(): char += string.ascii_lowercase
+        if self.useNumCB.isChecked(): char += string.digits
+        if self.usePunCB.isChecked(): char += string.punctuation
+
+        if self.useAccCB.isChecked():
+            m = max(16, min(2 * n, 191))
+            acc = random.sample(range(192, 383), m)
+            char += ''.join(map(chr, acc))
+
+        # https://en.wikipedia.org/wiki/Miscellaneous_Symbols_and_Pictographs
+        if self.useEmjCB.isChecked():
+            # generate m random emojis
+            m = max(16, min(2 * n, 768))
+            emj = random.sample(range(0x1F300, 0x1F600), m)
+            char += ''.join(map(chr, emj))
+
+        if not char:
+            self.showKeyPB.setChecked(False)
+            self.showKey(True)
+            hey = 'Turn one of those checkboxes back on'
+            self.keyInput.setPlaceholderText(hey)
+            self.keyInput.setText('')
+            return
+        else:
+            while len(char) < n: char += char
+            key = ''.join(random.sample(char, n))
+
         self.keyInput.setText(key)
+        self.keyInput.setPlaceholderText('Key')
+        self.showKeyLen(key, False)
 
     def showKey(self, state=None):
         "hide/show key characters"
-        if state is None: state = bool(self.showKeyCB.checkState())
+        if state is None: state = bool(self.showKeyPB.checkState())
         else: state = bool(state)
         if state: self.keyInput.setEchoMode(QLineEdit.Normal)
         else: self.keyInput.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+
+    def showKeyLen(self, string, display=True):
+        "displays a tooltip showing length of key"
+        s = len(string)
+        note = '{:,} character{}'.format(s, '' if s == 1 else 's')
+        col = '#c80000' if s < self.minKeyLen else '#258f22'
+        note = f'<span style="color:{col};">{note}</span>'
+
+        if display:
+            pos = self.genKeyButton.mapToGlobal(QPoint(0,0))
+            QToolTip.showText(pos, note)
+        self.keyInput.setToolTip(note)
 
     def getFolder(self):
         "open file dialog and fill file table"
@@ -127,14 +183,7 @@ class main(QWidget):
         if not path: return
         self.path = str(path)
         self.populateTable(self.path)
-        self.encrypted, self.decrypted = [], []
-        return
-
-    def resizeEvent(self, event):
-        self.showFolder(self.path)  # update how the folder is shown
-
-    def splitterChanged(self, pos):
-        self.showFolder(self.path)  # likewise
+        self.encrypted, self.decrypted = list(), list()
 
     def showFolder(self, path):
         "displays current path, truncating as needed"
@@ -163,19 +212,25 @@ class main(QWidget):
             if txt[2:] != lst and len(txt[2:]) < len(lst) + 2:
                 txt = str(fnt.elidedText(ell + sl + lst, rfg, wdh))
         # you'd think len(txt) < len(lst) would work, but no; you'd be wrong
-
         self.folderLabel.setText(txt)
+
+    def resizeEvent(self, event):
+        self.showFolder(self.path)  # update how the folder is shown
+
+    def splitterChanged(self, pos):
+        self.showFolder(self.path)  # likewise
 
     def populateTable(self, path):
         "fill file table with file names"
         self.showFolder(path)
 
-        names = []
-        for n in os.listdir(path):
+        names = []  # in Windows, listdir is sorted; in Linux, not so.
+        for n in sorted(os.listdir(path)):
             if os.path.isdir(os.path.join(path, n)): continue  # folder
             names.append(n)
 
         self.folderTable.clearContents()
+        self.folderTable.verticalHeader().setStretchLastSection(False)
         self.folderTable.setRowCount(len(names))
         self.folderTable.setColumnCount(1)
 
@@ -192,7 +247,7 @@ class main(QWidget):
 
             # color code encrypted/decrypted files
             if n in self.encrypted:
-                item.setTextColor(QColor(211, 70, 0))
+                item.setForeground(QColor(211, 70, 0))
                 # allowed encrypted filenames to be changed
                 item.setFlags(selEnab | Qt.ItemIsEditable)
             if n in self.decrypted:
@@ -255,6 +310,10 @@ class main(QWidget):
         self.messageLabel.setToolTip('')
         self.messageLabel.setText('')
 
+        self.encryptPbar.setValue(self.encryptPbar.minimum())
+        self.decryptPbar.setValue(self.decryptPbar.minimum())
+        self.hashPbar.setValue(self.hashPbar.minimum())
+
     def getName(self):
         "return file name of selected"
         items = self.folderTable.selectedItems()
@@ -262,23 +321,10 @@ class main(QWidget):
         if names: return names[0]  # only the first selected file
         else: return ''
 
-    def showKeyLen(self, string):
-        "displays a tooltip showing length of key"
-        s = len(string)
-        note = '{:,} character{}'.format(s, '' if s == 1 else 's')
-        tip = QToolTip
-        pos = self.genKeyButton.mapToGlobal(QPoint(0,0))
-
-        if s < self.minKeyLen:
-            note = '<span style="color:#c80000;">{}</span>'.format(note)
-        else:
-            note = '<span style="color:#258f22;">{}</span>'.format(note)
-        tip.showText(pos, note)
-
     def lock(self, flag=True):
         "locks buttons if True"
         stuff = [self.openButton, self.encryptButton, self.decryptButton,
-                 self.genKeyButton, self.hashButton, self.showKeyCB,
+                 self.genKeyButton, self.hashButton, self.showKeyPB,
                  self.copyButton, self.keyInput,
                  self.keySizeSB, self.folderTable, ]
         for i in stuff:
@@ -302,7 +348,8 @@ class main(QWidget):
         self.lock()
         self.setMessage('Party time!', 2.5)
         a, b, c = self.encryptPbar, self.decryptPbar, self.hashPbar
-        process, sleep = app.processEvents, time.sleep
+        av, bv, cv = a.setValue, b.setValue, c.setValue
+        p, s = app.processEvents, time.sleep
 
         am, bm, cm = a.minimum(), b.minimum(), c.minimum()
         ax, bx, cx = a.maximum(), b.maximum(), c.maximum()
@@ -314,59 +361,54 @@ class main(QWidget):
         # up and up!
         for i in range(3):
             for j, k, l in loops:
-                a.setValue(int(j)); b.setValue(int(k)); c.setValue(int(l))
-                process(); sleep(0.01)
+                av(int(j)); bv(int(k)); cv(int(l))
+                p(); s(0.01)
 
-        a.setValue(ax); b.setValue(bx); c.setValue(cx)
-        sleep(0.25)
-        a.setValue(am); b.setValue(bm); c.setValue(cm)
+        av(ax); bv(bx); cv(cx)
+        s(0.25)
+        av(am); bv(bm); cv(cm)
 
         # snake!
         self.setMessage('Snake time!')
-        self.messageLabel.setStyleSheet('background-color: rgb(127,170,255);')
+        self.messageLabel.setStyleSheet('background-color:rgb(127,170,255);')
         for i in range(2):
-            for j, k, l in loops: a.setValue(int(j)); process(); sleep(0.002)
-            process(); a.setInvertedAppearance(True); process()
-            for j, k, l in ivops: a.setValue(int(j)); process(); sleep(0.002)
+            for j, k, l in loops: av(int(j)); p(); s(0.002)
+            p(); a.setInvertedAppearance(True); p()
+            for j, k, l in ivops: av(int(j)); p(); s(0.002)
 
-            for j, k, l in loops: b.setValue(int(k)); process(); sleep(0.002)
-            process(); b.setInvertedAppearance(False); process()
-            for j, k, l in ivops: b.setValue(int(k)); process(); sleep(0.002)
+            for j, k, l in loops: bv(int(k)); p(); s(0.002)
+            p(); b.setInvertedAppearance(False); p()
+            for j, k, l in ivops: bv(int(k)); p(); s(0.002)
 
-            for j, k, l in loops: c.setValue(int(l)); process(); sleep(0.002)
-            process(); c.setInvertedAppearance(True); process()
-            for j, k, l in ivops: c.setValue(int(l)); process(); sleep(0.002)
+            for j, k, l in loops: cv(int(l)); p(); s(0.002)
+            p(); c.setInvertedAppearance(True); p()
+            for j, k, l in ivops: cv(int(l)); p(); s(0.002)
 
-            process(); b.setInvertedAppearance(True); process()
-            for j, k, l in loops: b.setValue(int(k)); process(); sleep(0.002)
-            process(); b.setInvertedAppearance(False); process()
-            for j, k, l in ivops: b.setValue(int(k)); process(); sleep(0.002)
-            process()
+            p(); b.setInvertedAppearance(True); p()
+            for j, k, l in loops: bv(int(k)); p(); s(0.002)
+            p(); b.setInvertedAppearance(False); p()
+            for j, k, l in ivops: bv(int(k)); p(); s(0.002)
+            p()
 
             a.setInvertedAppearance(False)
             b.setInvertedAppearance(True)
             c.setInvertedAppearance(False)
-        for j, k, l in loops: a.setValue(int(j)); process(); sleep(0.002)
-        process(); a.setInvertedAppearance(True); process()
-        for j, k, l in ivops: a.setValue(int(j)); process(); sleep(0.002)
+        for j, k, l in loops: av(int(j)); p(); s(0.002)
+        p(); a.setInvertedAppearance(True); p()
+        for j, k, l in ivops: av(int(j)); p(); s(0.002)
 
         # bars
-        sleep(0.5); self.setMessage('Bars!'); process()
-        self.messageLabel.setStyleSheet('background-color: rgb(127,255,170);')
+        s(0.5); self.setMessage('Bars!'); p()
+        self.messageLabel.setStyleSheet('background-color:rgb(127,255,170);')
         for i in range(2):
-            a.setValue(ax); time.sleep(0.65); a.setValue(am); sleep(0.25)
-            process()
-            b.setValue(bx); time.sleep(0.65); b.setValue(bm); sleep(0.25)
-            process()
-            c.setValue(cx); time.sleep(0.65); c.setValue(cm); sleep(0.25)
-            process()
-            b.setValue(bx); time.sleep(0.65); b.setValue(bm); sleep(0.25)
-            process()
+            av(ax); s(0.65); av(am); s(0.25); p()
+            bv(bx); s(0.65); bv(bm); s(0.25); p()
+            cv(cx); s(0.65); cv(cm); s(0.25); p()
+            bv(bx); s(0.65); bv(bm); s(0.25); p()
 
         # okay, enough
-        process()
-        a.setValue(ax); b.setValue(bx); c.setValue(cx)
-        #a.setValue(am); b.setValue(bm); c.setValue(cm)
+        p(); av(ax); bv(bx); cv(cx)
+        #av(am); bv(bm); cv(cm)
         a.setInvertedAppearance(False)
         b.setInvertedAppearance(True)
         c.setInvertedAppearance(False)
@@ -381,26 +423,33 @@ class main(QWidget):
         a, b, c = self.encryptPbar, self.decryptPbar, self.hashPbar
         am, bm, cm = a.minimum(), b.minimum(), c.minimum()
         ax, bx, cx = a.maximum(), b.maximum(), c.maximum()
+        av, bv, cv = a.setValue, b.setValue, c.setValue
         a.reset(); b.reset(); c.reset()
         loops = self._lerp((ax, bx, cx), (am, bm, cm), 100)
         for j, k, l in loops:
-            a.setValue(int(j)); b.setValue(int(k)); c.setValue(int(l))
+            av(int(j)); bv(int(k)); cv(int(l))
             app.processEvents()
             time.sleep(0.02)
         a.reset(); b.reset(); c.reset()
         self.lock(False); self.clearMessage()
 
-    def genHash(self, action):
+    def genHash(self, action=None):
         "generate hash of selected file and display it"
         name, t0 = self.getName(), time.perf_counter()
+        if type(action) is bool: action = None
 
-        # mark what hash was used in the drop-down menu
-        for i in self.hashButton.menu().actions():
-            if i == action: i.setIconVisibleInMenu(True)
-            else: i.setIconVisibleInMenu(False)
+        # find what hash was used in the drop-down menu
+        for act in self.hashButton.menu().actions():
+            if act.isChecked():
+                self.hashButton.setToolTip(act.text())
+                if str(act.text()) != 'Party':
+                    self._prior_hsh = act
+                if action is None: action = act
+                break
 
         if str(action.text()) == 'Party':
             self.weeeeeee(); self.windDown('Winding down...')
+            self._prior_hsh.setChecked(True)
             return
         if not name:
             self.setMessage('No file selected')
@@ -415,8 +464,9 @@ class main(QWidget):
         self.lock(False)
         #hsh = str(action.text()) + ': ' + hsh
         self.hashLabel.setText(hsh); self.hashLabel.setToolTip(hsh)
-        self.extraLabel.setText(str(action.text()) + ' hash took ' +
-                                self.secs_fmt(time.perf_counter() - t0))
+        info = (str(action.text()) + ' hash took ' +
+                self.secs_fmt(time.perf_counter() - t0))
+        self.extraLabel.setText(info); self.extraLabel.setToolTip(info)
 
     def setCancel(self):
         "cancel operation"
@@ -428,11 +478,13 @@ class main(QWidget):
         self.cancelButton.setEnabled(state)
         if state:
             self.cancelButton.show()
+            self.showKeyPB.hide()
             self.keyInput.hide()
             self.genKeyButton.hide()
             self.keySizeSB.hide()
         else:
             self.cancelButton.hide()
+            self.showKeyPB.show()
             self.keyInput.show()
             self.genKeyButton.show()
             self.keySizeSB.show()
@@ -498,6 +550,7 @@ class main(QWidget):
 
         self.populateTable(self.path)  # repopulate folder list
         bn, tt = os.path.basename(gn), time.perf_counter() - t0
+        #self.encryptPbar.setValue(self.encryptPbar.minimum())
         self.setMessage('Encrypted, saved "{}"'.format(bn, 13))
         self.extraLabel.setText('Encrypting took ' + self.secs_fmt(tt))
 
@@ -531,6 +584,7 @@ class main(QWidget):
             dst.write(vault.encrypt(struct.pack('<2Q', fsz, fnz)))
             dst.write(vault.encrypt(fne))  # store filename
 
+            # read file in and encrypt
             while 1:
                 dat = src.read(blksize)
                 if not dat: break
@@ -545,8 +599,10 @@ class main(QWidget):
                 app.processEvents()
 
                 if self._requestStop: break
+
+            # finished file, finish up
             if not self._requestStop:
-                stuf = random.randrange(23)  # pack in more stuffing
+                stuf = random.randrange(263)  # pack in more stuffing
                 fing = b''.join(bytes(sample(chars, 16)) for i in range(stuf))
                 dst.write(vault.encrypt(fing))  # and for annoyance
 
@@ -615,6 +671,7 @@ class main(QWidget):
                 rfn = vault.decrypt(src.read(rnz))[:fnz].decode()
                 self.setMessage('Found "{}"'.format(rfn), 13, (255, 211, 127))
 
+                # read in file and decrypt
                 while 1:
                     dat = src.read(blksize)
                     if not dat: break
@@ -655,8 +712,17 @@ class main(QWidget):
         os.rename(gn, fn)  # restore original name
         return fn  # saved name
 
-    def copyKeyHash(self, action):
+    def copyKeyHash(self, action=None):
         "copies either the key or the hash to clipboard"
+        if type(action) is bool: action = None
+
+        # mark what hash was used in the drop-down menu
+        for act in self.copyButton.menu().actions():
+            if act.isChecked():
+                self.copyButton.setToolTip(act.text())
+                if action is None: action = act
+                break
+
         act = str(action.text()).lower()
 
         if 'key' in act: txt = str(self.keyInput.text())
@@ -671,6 +737,14 @@ class main(QWidget):
 
         self.clipboard.clear()
         self.clipboard.setText(txt)
+
+    def checkExclusive(self):
+        "checks if at least one checkbox remains checked in self._cb_lst"
+        if self.sender() not in self._cb_lst: return
+        if not any(i.isChecked() for i in self._cb_lst):
+            self.sender().setChecked(True)
+        return
+        
 
     def secs_fmt(self, s):
         "6357 -> '1h 45m 57s'"
@@ -699,30 +773,35 @@ class main(QWidget):
         self.minKeyLen = 8
         self.maxKeyLen = 4096
 
+        hgt = 25#20
+        wdh = 75
+
         self.splitter = QSplitter(self)
         self.splitter.setOrientation(Qt.Horizontal)
         self.splitter.splitterMoved.connect(self.splitterChanged)
+        #self.splitter.setStyleSheet("QSplitter::handle{background-color:#333;}")
 
-        # left column
+
+        # left column --------------------------------------------------------
         self.leftColumn = QWidget()
         self.vl01 = QVBoxLayout()
 
-        # left column - first item (0; horizonal layout 0)
+        # left column - first item (0; horizontal layout 0)
         self.hl00 = QHBoxLayout()
         self.hl00.setSpacing(5)
 
         self.openButton = QPushButton('&Open')
         self.openButton.setToolTip('Open folder')
-        self.openButton.setMinimumSize(60, 20)
-        self.openButton.setMaximumSize(60, 20)
+        self.openButton.setMinimumSize(wdh, hgt)
+        self.openButton.setMaximumSize(wdh, hgt)
         self.openButton.setSizePolicy(Fixed)
         self.openButton.clicked.connect(self.getFolder)
         #ico = self.style().standardIcon(QStyle.SP_DirIcon)
         #self.openButton.setIcon(ico)
 
         self.folderLabel = QLabel()
-        self.folderLabel.setMinimumSize(135, 20)
-        self.folderLabel.setMaximumSize(16777215, 20)
+        self.folderLabel.setMinimumSize(135, hgt)
+        self.folderLabel.setMaximumSize(16777215, hgt)
         self.folderLabel.setSizePolicy(MinimumExpanding)
         self.hl00.insertWidget(0, self.openButton)
         self.hl00.insertWidget(1, self.folderLabel)
@@ -734,60 +813,90 @@ class main(QWidget):
         self.folderTable.horizontalHeader().setStretchLastSection(True)
         self.folderTable.verticalHeader().setVisible(False)
         self.folderTable.verticalHeader().setDefaultSectionSize(15)
+        self.folderTable.setAlternatingRowColors(True)
+        self.folderTable.setSelectionMode(QTableWidget.SingleSelection)
+        #self.folderTable.setStyleSheet('QTableWidget{background-color:white;}')
+
+        # add one row, one column with an item explaining how to use program
+        self.folderTable.verticalHeader().setStretchLastSection(True)
+        self.folderTable.setRowCount(1)
+        self.folderTable.setColumnCount(1)
+        info = QTableWidgetItem()
+        #info.setTextAlignment(Qt.AlignCenter)
+        txt = ('How to:\n  1. Open a folder with the button above\n'
+               '  (This spot will list the files in the selected folder)\n'
+               '  2. Select a file in this list\n'
+               '  3. Encrypt/Decrypt the selected file with the controls '
+               'on the right\n'
+               '  (Encrypted files store their file name; decrypted '
+               'files are given the stored name on extraction)\n'
+               '  4. (Optional) Double click on newly encrypted files '
+               'within this list to rename them.\n'
+               )
+        info.setText(txt); info.setToolTip(txt)
+        info.setForeground(QColor(130, 130, 130))
+        info.setBackground(QColor(255, 255, 255))
+        info.setFlags(Qt.ItemIsEnabled)
+        self.folderTable.setItem(0, 0, info)
         self.folderTable.itemChanged.connect(self.editFileName)
+
 
         # left column - third item (2)
         self.extraLabel = QLabel()
-        self.extraLabel.setMinimumSize(200, 20)
-        self.extraLabel.setMaximumSize(16777215, 20)
+        self.extraLabel.setWordWrap(True)
+        self.extraLabel.setMinimumSize(200, hgt)
+        self.extraLabel.setMaximumSize(16777215, 2 * hgt)
         self.extraLabel.setSizePolicy(MinimumExpanding)
-        self.extraLabel.setTextInteractionFlags(Qt.LinksAccessibleByMouse)
+        self.extraLabel.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
 
         # finalize left column
-        self.vl01.insertLayout(0, self.hl00)
-        self.vl01.insertWidget(1, self.folderTable)
-        self.vl01.insertWidget(2, self.extraLabel)
+        self.vl01.addLayout(self.hl00)
+        self.vl01.addWidget(self.folderTable)
+        self.vl01.addWidget(self.extraLabel)
         self.leftColumn.setLayout(self.vl01)
 
-        # right column
+        # right column -------------------------------------------------------
         self.rightColumn = QWidget()
         self.vl02 = QVBoxLayout()
 
         # right column - first item (0)
         self.messageLabel = QLabel()
-        self.messageLabel.setMinimumSize(290, 20)
-        self.messageLabel.setMaximumSize(16777215, 20)
+        self.messageLabel.setMinimumSize(290, hgt)
+        self.messageLabel.setMaximumSize(16777215, hgt)
         self.messageLabel.setSizePolicy(MinimumExpanding)
         self.messageLabel.setAlignment(Qt.AlignCenter)
 
         # right column - second item (2; horizontal layout 1)
         self.hl01 = QHBoxLayout()
         self.hl01.setSpacing(5)
+        self.hl01.setContentsMargins(0,0,0,0)
 
         self.encryptButton = QPushButton('&Encrypt')#\U0001F512
         self.encryptButton.setToolTip('Encrypt selected file')
-        self.encryptButton.setMinimumSize(60, 20)
-        self.encryptButton.setMaximumSize(60, 20)
+        self.encryptButton.setMinimumSize(wdh, hgt)
+        self.encryptButton.setMaximumSize(wdh, hgt)
         self.encryptButton.setSizePolicy(Fixed)
         self.encryptButton.clicked.connect(self.encrypt)
 
         self.encryptPbar = QProgressBar()
-        self.encryptPbar.setMinimumSize(225, 20)
-        self.encryptPbar.setMaximumSize(16777215, 20)
+        self.encryptPbar.setMinimumSize(225, hgt)
+        self.encryptPbar.setMaximumSize(16777215, hgt)
         self.encryptPbar.setSizePolicy(MinimumExpanding)
         self.encryptPbar.setTextVisible(False)
 
         palette = self.encryptPbar.palette()  # color of progress bar
         color = QColor(211, 70, 0)
-        palette.setColor(QPalette.Highlight, color)
+        palette.setColor(palette.ColorRole.Highlight, color)
         self.encryptPbar.setPalette(palette)
 
-        self.hl01.insertWidget(0, self.encryptButton)
-        self.hl01.insertWidget(1, self.encryptPbar)
+        self.hl01.addWidget(self.encryptButton)
+        self.hl01.addWidget(self.encryptPbar)
 
         # right column - third item (3; horizontal layout 2)
         self.hl02 = QHBoxLayout()
         self.hl02.setSpacing(5)
+        self.hl02.setContentsMargins(0,0,0,0)
 
         self.cancelButton = QPushButton('C&ANCEL')
         self.cancelButton.setToolTip('Cancels current operation')
@@ -802,36 +911,107 @@ class main(QWidget):
         self.cancelButton.hide()
         self._requestStop = False
 
+        self.showKeyPB = QPushButton('\U0001F511')
+        self.showKeyPB.setToolTip('Show/Hide key value; Alt + s')
+        self.showKeyPB.setShortcut(QKeySequence(Qt.ALT | Qt.Key.Key_S))
+        self.showKeyPB.setMinimumSize(hgt, hgt)
+        self.showKeyPB.setMaximumSize(hgt, hgt)
+        self.showKeyPB.setSizePolicy(Fixed)
+        self.showKeyPB.setCheckable(True)
+        self.showKeyPB.clicked.connect(self.showKey)
+        self.showKeyPB.setChecked(True)
+
         self.keyInput = QLineEdit()
-        self.keyInput.setMinimumSize(225, 20)
-        self.keyInput.setMaximumSize(16777215, 20)
+        self.keyInput.setMinimumSize(225, hgt)
+        self.keyInput.setMaximumSize(16777215, hgt)
         self.keyInput.setSizePolicy(MinimumExpanding)
-        self.keyInput.setPlaceholderText('key')
+        self.keyInput.setPlaceholderText('Key')
         self.keyInput.setMaxLength(self.maxKeyLen)
         self.keyInput.setAlignment(Qt.AlignCenter)
         self.keyInput.textEdited.connect(self.showKeyLen)
+        self.keyInput.setStyleSheet('QLineEdit{background-color:white;'
+                        'selection-background-color:rgb(220,138,221);}')
 
-        self.genKeyButton = QPushButton('&Gen Key')#\U0001F511
+        self.genKeyButton = QToolButton()
+        self.genKeyButton.setText('&Gen Key')
         self.genKeyButton.setToolTip('Generate a random key')
-        self.genKeyButton.setMinimumSize(60, 20)
-        self.genKeyButton.setMaximumSize(60, 20)
+        self.genKeyButton.setMinimumSize(wdh, hgt)
+        self.genKeyButton.setMaximumSize(wdh, hgt)
         self.genKeyButton.setSizePolicy(Fixed)
+        self.genKeyButton.setPopupMode(QToolButton.MenuButtonPopup)
         self.genKeyButton.clicked.connect(self.genKey)
 
+        # stuff to stuff into the genKeyButton
         self.keySizeSB = QSpinBox()
         self.keySizeSB.setToolTip('Length of key to generate')
-        self.keySizeSB.setRange(32, 1024)
-        self.keySizeSB.setMinimumSize(40, 20)
-        self.keySizeSB.setMaximumSize(40, 20)
-        self.keySizeSB.setSizePolicy(Fixed)
+        self.keySizeSB.setRange(16, 2048)
+        #self.keySizeSB.setMinimumSize(50, hgt)
+        #self.keySizeSB.setMaximumSize(50, hgt))
+        #self.keySizeSB.setSizePolicy(Fixed)
         self.keySizeSB.setAlignment(Qt.AlignCenter)
-        self.keySizeSB.setButtonSymbols(QSpinBox.NoButtons)
+        #self.keySizeSB.setButtonSymbols(QSpinBox.PlusMinus)
         self.keySizeSB.setWrapping(True)
+        self.keySizeSB.setStyleSheet('QSpinBox{'#background-color:white;'
+            'selection-background-color:rgb(220,138,221);}')
 
-        self.hl02.insertWidget(0, self.cancelButton)
-        self.hl02.insertWidget(1, self.keyInput)
-        self.hl02.insertWidget(2, self.genKeyButton)
-        self.hl02.insertWidget(3, self.keySizeSB)
+        kslbl = QLabel('Key &length:')
+        kslbl.setBuddy(self.keySizeSB)
+        kslbl.setToolTip(self.keySizeSB.toolTip())
+
+        hline = QFrame()
+        hline.setFrameShape(QFrame.HLine)
+        hline.setFrameShadow(QFrame.Raised)
+
+        # letters, numbers, emoji, extended
+        self.useUprCB = QCheckBox('&Upper Case\n(ABC...)')
+        self.useLwrCB = QCheckBox('&Lower Case\n(abc...)')
+        self.useNumCB = QCheckBox('&Numbers\n(0123...)')
+        self.usePunCB = QCheckBox('&Punctuation\n(!:?&&...)')
+        self.useAccCB = QCheckBox('&Accents\n(ÀçĕĨ...)')# ¢ÜćĨ
+        self.useEmjCB = QCheckBox('Emo&ji\n(\U0001F3B2\U0001F4CB'
+                                  '\U0001F4E6\U0001F511...)')
+
+        self.useUprCB.setChecked(True)
+        self.useLwrCB.setChecked(True)
+        self.useNumCB.setChecked(True)
+
+        lst = [self.useUprCB, self.useLwrCB, self.useNumCB,
+               self.usePunCB, self.useAccCB, self.useEmjCB]
+        for ckb in lst:
+            knd = ckb.text().split('\n')[0].replace('&', '')
+            ckb.setToolTip(f'Have {knd} in the generated key')
+            ckb.clicked.connect(self.checkExclusive)
+        self._cb_lst = lst
+
+        gk_ly = QGridLayout()
+        gk_ly.setContentsMargins(1,1,1,1)
+        gk_ly.addWidget(kslbl,          0, 0)
+        gk_ly.addWidget(self.keySizeSB, 0, 1)
+        gk_ly.addWidget(hline,          1, 0, 1, -1)
+        gk_ly.addWidget(self.useUprCB,  2, 0)
+        gk_ly.addWidget(self.useLwrCB,  2, 1)
+        gk_ly.addWidget(self.usePunCB,  3, 0)
+        gk_ly.addWidget(self.useNumCB,  3, 1)
+        gk_ly.addWidget(self.useAccCB,  4, 0)
+        gk_ly.addWidget(self.useEmjCB,  4, 1)
+
+        gk_wt = QFrame()
+        gk_wt.setFrameShadow(QFrame.Sunken)
+        gk_wt.setFrameShape(QFrame.Panel)
+        gk_wt.setContentsMargins(2,2,2,2)
+        gk_wt.setLayout(gk_ly)
+
+        # menu item in gen key button holding action that holds all the above
+        mnu = QMenu(self.genKeyButton)
+        act = QWidgetAction(mnu)
+        act.setDefaultWidget(gk_wt)
+        mnu.addAction(act)
+        self.genKeyButton.setMenu(mnu)
+
+        self.hl02.addWidget(self.cancelButton)
+        self.hl02.addWidget(self.showKeyPB)
+        self.hl02.addWidget(self.keyInput)
+        self.hl02.addWidget(self.genKeyButton)
 
         # right column - fourth item (4; horizontal layout 3)
         self.hl03 = QHBoxLayout()
@@ -839,104 +1019,115 @@ class main(QWidget):
 
         self.decryptButton = QPushButton('&Decrypt')#\U0001F513
         self.decryptButton.setToolTip('Decrypt selected file')
-        self.decryptButton.setMinimumSize(60, 20)
-        self.decryptButton.setMaximumSize(60, 20)
+        self.decryptButton.setMinimumSize(wdh, hgt)
+        self.decryptButton.setMaximumSize(wdh, hgt)
         self.decryptButton.setSizePolicy(Fixed)
         self.decryptButton.clicked.connect(self.decrypt)
 
         self.decryptPbar = QProgressBar()
-        self.decryptPbar.setMinimumSize(225, 20)
-        self.decryptPbar.setMaximumSize(16777215, 20)
+        self.decryptPbar.setMinimumSize(225, hgt)
+        self.decryptPbar.setMaximumSize(16777215, hgt)
         self.decryptPbar.setSizePolicy(MinimumExpanding)
         self.decryptPbar.setTextVisible(False)
         self.decryptPbar.setInvertedAppearance(True)
+        #self.decryptPbar.setLayoutDirection(Qt.RightToLeft)
 
         palette = self.decryptPbar.palette()  # color of progress bar
         color = QColor(0, 170, 255)
-        palette.setColor(QPalette.Highlight, color)
+        palette.setColor(palette.ColorRole.Highlight, color)
         self.decryptPbar.setPalette(palette)
 
-        self.hl03.insertWidget(0, self.decryptButton)
-        self.hl03.insertWidget(1, self.decryptPbar)
+        self.hl03.addWidget(self.decryptButton)
+        self.hl03.addWidget(self.decryptPbar)
 
         # right column - fifth item (7; horizontal layout 4)
         self.hl04 = QHBoxLayout()
         self.hl04.setSpacing(5)
 
-        self.showKeyCB = QCheckBox('&Show Key')
-        self.showKeyCB.setToolTip('Show/Hide key value')
-        self.showKeyCB.setMinimumSize(75, 20)
-        self.showKeyCB.setMaximumSize(75, 20)
-        self.showKeyCB.setSizePolicy(Fixed)
-        self.showKeyCB.clicked.connect(self.showKey)
-        self.showKeyCB.setChecked(True)
+        self.copyButton = QToolButton()
+        self.copyButton.setText('&Copy')#\U0001F4CB
+        self.copyButton.setToolTip('Copy key or hash to clipboard')
+        self.copyButton.setPopupMode(QToolButton.MenuButtonPopup)
+        self.copyButton.setMinimumSize(wdh, hgt)
+        self.copyButton.setMaximumSize(wdh, hgt)
+        self.copyButton.setSizePolicy(Fixed)
+        self.copyButton.setLayoutDirection(Qt.RightToLeft)
+
+        menu2 = QMenu(self.copyButton)
+        agrp2 = QActionGroup(self)
+        act = menu2.addAction('Copy Key'); act.setCheckable(True)
+        act.setChecked(True); act.setActionGroup(agrp2)
+
+        act = menu2.addAction('Copy Hash'); act.setCheckable(True)
+        act.setChecked(False); act.setActionGroup(agrp2)
+
+        self.copyButton.setMenu(menu2)
+        self.copyButton.clicked.connect(self.copyKeyHash)
+        menu2.triggered.connect(self.copyKeyHash)
 
         self.hashPbar = QProgressBar()
-        self.hashPbar.setMinimumSize(150, 20)
-        self.hashPbar.setMaximumSize(16777215, 20)
+        self.hashPbar.setMinimumSize(150, hgt)
+        self.hashPbar.setMaximumSize(16777215, hgt)
         self.hashPbar.setSizePolicy(MinimumExpanding)
         self.hashPbar.setTextVisible(False)
 
         palette = self.hashPbar.palette()  # color of progress bar
         color = QColor(31, 120, 73)
-        palette.setColor(QPalette.Highlight, color)
+        palette.setColor(palette.ColorRole.Highlight, color)
         self.hashPbar.setPalette(palette)
 
-        self.hashButton = QPushButton('&Hash')
+        self.hashButton = QToolButton()
+        self.hashButton.setText('&Hash')
         self.hashButton.setToolTip('Determine file hash')
-        self.hashButton.setMinimumSize(60, 20)
-        self.hashButton.setMaximumSize(60, 20)
+        self.hashButton.setPopupMode(QToolButton.MenuButtonPopup)
+        self.hashButton.setMinimumSize(wdh, hgt)
+        self.hashButton.setMaximumSize(wdh, hgt)
         self.hashButton.setSizePolicy(Fixed)
 
         menu = QMenu(self.hashButton)
-        ico = self.style().standardIcon(QStyle.SP_DialogYesButton)
-        for alg in sorted(filter(lambda x: 'shake' not in x, hashlib.algorithms_guaranteed), key=lambda n:(len(n), sorted(hashlib.algorithms_guaranteed).index(n))):
-            menu.addAction(ico, alg)  # drop shake algs as their .hexdigest requires an argument - the rest don't
-        menu.addAction(ico, 'Party')
-        for i in menu.actions(): i.setIconVisibleInMenu(False)
+        agrp = QActionGroup(self)
+
+        key =lambda n:(len(n),sorted(hashlib.algorithms_guaranteed).index(n))
+        # drop shake algs as their .hexdigest requires an argument
+        flt =lambda x: 'shake' not in x  # the rest don't
+        hsh_guar = hashlib.algorithms_guaranteed
+        for i, alg in enumerate(sorted(filter(flt, hsh_guar), key=key)):
+            act = menu.addAction(alg)
+            act.setCheckable(True)
+            act.setActionGroup(agrp)
+            if not i:
+                act.setChecked(True)
+                self._prior_hsh = act
+            else: act.setChecked(False)
+
+        act = menu.addAction('Party'); act.setCheckable(True)
+        act.setChecked(False); act.setActionGroup(agrp)
+
         self.hashButton.setMenu(menu)
+        self.hashButton.clicked.connect(self.genHash)
         menu.triggered.connect(self.genHash)
 
-        self.hl04.insertWidget(0, self.showKeyCB)
-        self.hl04.insertWidget(1, self.hashPbar)
-        self.hl04.insertWidget(2, self.hashButton)
+        self.hl04.addWidget(self.copyButton)
+        self.hl04.addWidget(self.hashPbar)
+        self.hl04.addWidget(self.hashButton)
 
         # right column - sixth item (8; horizontal layout 5)
-        self.hl05 = QHBoxLayout()
-        self.hl05.setSpacing(5)
-
-        self.copyButton = QPushButton('&Copy')#\U0001F4CB
-        self.copyButton.setToolTip('Copy key or hash to clipboard')
-        self.copyButton.setMinimumSize(60, 20)
-        self.copyButton.setMaximumSize(60, 20)
-        self.copyButton.setSizePolicy(Fixed)
-
-        menu2 = QMenu(self.copyButton)
-        menu2.addAction('Copy Key'); menu2.addAction('Copy Hash')
-        self.copyButton.setMenu(menu2)
-        menu2.triggered.connect(self.copyKeyHash)
-
         self.hashLabel = QLabel()
-        self.hashLabel.setMinimumSize(225, 20)
-        self.hashLabel.setMaximumSize(16777215, 20)
+        self.hashLabel.setMinimumSize(225, hgt)
+        self.hashLabel.setMaximumSize(16777215, hgt)
         self.hashLabel.setSizePolicy(MinimumExpanding)
         self.hashLabel.setTextFormat(Qt.PlainText)
         self.hashLabel.setAlignment(Qt.AlignCenter)
         self.hashLabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
 
-        self.hl05.insertWidget(0, self.copyButton)
-        self.hl05.insertWidget(1, self.hashLabel)
-
         # finalize right column
-        self.vl02.insertWidget(0, self.messageLabel)
-        self.vl02.insertSpacerItem(1, QSpacerItem(0, 0))
-        self.vl02.insertLayout(2, self.hl01)
-        self.vl02.insertLayout(3, self.hl02)
-        self.vl02.insertLayout(4, self.hl03)
-        self.vl02.insertSpacerItem(5, QSpacerItem(0, 0))
-        self.vl02.insertWidget(6, QFrame())
-        self.vl02.insertLayout(7, self.hl04)
-        self.vl02.insertLayout(8, self.hl05)
+        self.vl02.addWidget(self.messageLabel)
+        self.vl02.addLayout(self.hl01)
+        self.vl02.addLayout(self.hl02)
+        self.vl02.addLayout(self.hl03)
+        self.vl02.addStretch()
+        self.vl02.addLayout(self.hl04)
+        self.vl02.addWidget(self.hashLabel)
         self.rightColumn.setLayout(self.vl02)
 
         # finalize main window
@@ -955,4 +1146,5 @@ if __name__ == '__main__':
     w = main(); w.show()
     ico = w.style().standardIcon(QStyle.SP_FileDialogDetailedView)
     w.setWindowIcon(ico)
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
+
